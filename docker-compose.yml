@@ -1,0 +1,50 @@
+services:
+  zlm:
+    image: zlmediakit/zlmediakit:master
+    container_name: drone-zlm
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "1935:1935"
+      - "8554:554"
+      - "10000:10000/tcp"
+      - "10000:10000/udp"
+    volumes:
+      - ./data/zlm/log:/opt/media/bin/log
+      - ./deploy/zlm/config.local.ini:/opt/media/conf/config.ini
+    environment:
+      TZ: Asia/Shanghai
+
+  backend:
+    build:
+      context: ./backend
+    container_name: drone-backend
+    restart: unless-stopped
+    profiles:
+      - app
+    ports:
+      - "8000:8000"
+    environment:
+      DRONE_STREAM_ZLM_BASE_URL: http://zlm
+      DRONE_STREAM_ZLM_SECRET: ${DRONE_STREAM_ZLM_SECRET}
+      DRONE_STREAM_PUBLIC_ZLM_HOST: 127.0.0.1
+      DRONE_STREAM_PUBLIC_ZLM_HTTP_PORT: "8080"
+      DRONE_STREAM_PUBLIC_ZLM_RTMP_PORT: "1935"
+      DRONE_STREAM_PUBLIC_ZLM_RTSP_PORT: "8554"
+      DRONE_STREAM_DATABASE_URL: sqlite:////app/data/drone_stream.db
+    volumes:
+      - ./data/backend:/app/data
+    depends_on:
+      - zlm
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: drone-frontend
+    restart: unless-stopped
+    profiles:
+      - app
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
