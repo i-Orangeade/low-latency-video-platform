@@ -37,35 +37,11 @@ jobs:
       - run: npm audit --audit-level=high
         working-directory: frontend
 
-  native-and-scripts:
+  compose:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build C++ tools
-        run: |
-          cmake -S cpp-tools -B /tmp/cpp-tools-build -DCMAKE_BUILD_TYPE=Release
-          cmake --build /tmp/cpp-tools-build --parallel 2
-      - name: Test latency calculations
-        run: scripts/run_latency_experiment.sh --self-test
-      - name: Build and test foundation labs
-        run: |
-          cmake -S labs -B /tmp/foundation-build -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          cmake --build /tmp/foundation-build --parallel 2
-          ctest --test-dir /tmp/foundation-build --output-on-failure
-      - name: Test network tooling without privileges
-        run: |
-          bash -n scripts/*.sh deploy/ffmpeg/*.sh zlm-custom/*.sh
-          scripts/test_network_tools.sh
       - name: Validate Compose model
         env:
-          DRONE_STREAM_ZLM_SECRET: ci-api-secret
-          DRONE_STREAM_ZLM_HOOK_SECRET: ci-hook-secret
-          ZLM_RTC_EXTERN_IP: 127.0.0.1
+          LLVP_ZLM_SECRET: ci-api-secret
         run: docker compose config >/dev/null
-      - name: Verify pinned ZLM patch
-        run: |
-          git init /tmp/ZLMediaKit
-          git -C /tmp/ZLMediaKit remote add origin https://github.com/ZLMediaKit/ZLMediaKit.git
-          git -C /tmp/ZLMediaKit fetch --depth 1 origin da9b2017fbdd1738da4d68ff442b5eca3542c3ba
-          git -C /tmp/ZLMediaKit checkout --detach FETCH_HEAD
-          zlm-custom/test_patch.sh /tmp/ZLMediaKit

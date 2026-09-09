@@ -1,37 +1,26 @@
 services:
   zlm:
-    build:
-      context: ./zlm-custom
-      args:
-        ZLM_COMMIT: da9b2017fbdd1738da4d68ff442b5eca3542c3ba
-    image: drone-stream-platform/zlm:qos-da9b201
-    container_name: drone-zlm
+    image: zlmediakit/zlmediakit@sha256:c277aa7fca72e514fe071cc167da994ea5f60e4a39b1519d4939ab63acbe3135
+    container_name: llvp-zlm
     restart: unless-stopped
+    working_dir: /opt/media/bin
+    entrypoint: ["/bin/sh", "/opt/media/bin/llvp-entrypoint.sh"]
     ports:
       - "8080:80"
       - "1935:1935"
-      - "8554:554"
-      - "8001:8001/tcp"
-      - "8001:8001/udp"
-      - "10000:10000/tcp"
-      - "10000:10000/udp"
     volumes:
+      - ./deploy/zlm/entrypoint.sh:/opt/media/bin/llvp-entrypoint.sh:ro
+      - ./deploy/zlm/config.template.ini:/opt/media/conf/config.template.ini:ro
       - ./data/zlm/log:/opt/media/bin/log
-      - ./deploy/zlm/config.local.ini:/opt/media/conf/config.template.ini:ro
     environment:
       TZ: Asia/Shanghai
-      DRONE_STREAM_ZLM_SECRET: ${DRONE_STREAM_ZLM_SECRET:?set DRONE_STREAM_ZLM_SECRET in .env}
-      DRONE_STREAM_ZLM_HOOK_SECRET: ${DRONE_STREAM_ZLM_HOOK_SECRET:?set DRONE_STREAM_ZLM_HOOK_SECRET in .env}
-      ZLM_RTC_EXTERN_IP: ${ZLM_RTC_EXTERN_IP:-127.0.0.1}
-    depends_on:
-      backend:
-        condition: service_healthy
+      LLVP_ZLM_SECRET: ${LLVP_ZLM_SECRET:?set LLVP_ZLM_SECRET in .env}
     healthcheck:
       test:
         - CMD-SHELL
         - >-
           curl -fsS
-          "http://127.0.0.1/index/api/getServerConfig?secret=$${DRONE_STREAM_ZLM_SECRET}"
+          "http://127.0.0.1/index/api/getServerConfig?secret=$${LLVP_ZLM_SECRET}"
           >/dev/null
       interval: 5s
       timeout: 3s
@@ -41,19 +30,17 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: drone-backend
+    container_name: llvp-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      DRONE_STREAM_ZLM_BASE_URL: http://zlm
-      DRONE_STREAM_ZLM_SECRET: ${DRONE_STREAM_ZLM_SECRET}
-      DRONE_STREAM_ZLM_HOOK_SECRET: ${DRONE_STREAM_ZLM_HOOK_SECRET}
-      DRONE_STREAM_PUBLIC_ZLM_HOST: 127.0.0.1
-      DRONE_STREAM_PUBLIC_ZLM_HTTP_PORT: "8080"
-      DRONE_STREAM_PUBLIC_ZLM_RTMP_PORT: "1935"
-      DRONE_STREAM_PUBLIC_ZLM_RTSP_PORT: "8554"
-      DRONE_STREAM_DATABASE_URL: sqlite:////app/data/drone_stream.db
+      LLVP_ZLM_BASE_URL: http://zlm
+      LLVP_ZLM_SECRET: ${LLVP_ZLM_SECRET}
+      LLVP_PUBLIC_ZLM_HOST: 127.0.0.1
+      LLVP_PUBLIC_ZLM_HTTP_PORT: "8080"
+      LLVP_PUBLIC_ZLM_RTMP_PORT: "1935"
+      LLVP_DATABASE_URL: sqlite:////app/data/llvp.db
     volumes:
       - ./data/backend:/app/data
     healthcheck:
@@ -72,7 +59,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: drone-frontend
+    container_name: llvp-frontend
     restart: unless-stopped
     ports:
       - "5173:80"

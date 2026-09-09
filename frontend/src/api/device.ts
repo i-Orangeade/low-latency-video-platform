@@ -4,17 +4,11 @@ export interface Device {
   id: number;
   name: string;
   stream_id: string;
-  location?: string | null;
-  description?: string | null;
-  enabled: boolean;
 }
 
 export interface DeviceCreate {
   name: string;
   stream_id: string;
-  location?: string;
-  description?: string;
-  enabled?: boolean;
 }
 
 export function listDevices() {

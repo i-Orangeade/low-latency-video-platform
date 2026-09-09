@@ -2,58 +2,42 @@
 
 ## Goal
 
-The platform receives real-time inspection video from a drone-side or ground-station-side encoder, distributes it through ZLMediaKit, and exposes monitoring, playback, recording, alerting, and experiment data through a Web system.
+The base platform ingests a live test source or camera over RTMP, converts it
+to HTTP-FLV with a pinned official ZLMediaKit image, and lets a Vue player
+watch it. FastAPI only registers devices and queries stream status.
 
 ## Data Flow
 
 ```text
-Drone or camera
-  -> Ground station / encoder
-  -> FFmpeg or C++ pusher
-  -> RTMP/RTSP
-  -> ZLMediaKit
-  -> HTTP-FLV / WebRTC / HLS
-  -> Browser
+Camera or FFmpeg test source
+  -> RTMP
+  -> Official ZLMediaKit
+  -> HTTP-FLV
+  -> Browser (mpegts.js)
+
+Browser
+  -> FastAPI device and stream APIs
+  -> SQLite device table
+  -> ZLMediaKit getMediaList
 ```
 
-The backend does not forward media packets. It manages business data and calls ZLMediaKit APIs. This keeps the media plane and control plane separate.
+## Media Plane vs Control Plane
 
-## Control Plane
+ZLMediaKit owns ingest, protocol conversion, and HTTP-FLV delivery. FastAPI
+never forwards media packets. It stores `id/name/stream_id` devices and asks
+ZLMediaKit whether a stream is currently published.
 
-FastAPI owns devices, stream metadata, alert records, recording metadata, and experiment results.
+Device registration is a demo catalog, not a publish gate. Any client may push
+to `rtmp://host/live/{stream_id}`.
 
-The pinned custom ZLMediaKit build owns stream ingestion, protocol conversion,
-WebRTC signaling, HLS/FLV/RTSP output, recording, and the windowed per-stream
-QoS sampler. Its new API executes sampling on the stream owner poller and
-returns aggregated metrics to FastAPI.
+## Learning Order
 
-The frontend requests play URLs from FastAPI, then pulls media directly from ZLMediaKit. This avoids sending video traffic through the business backend.
+1. Start Compose and confirm `/api/health`.
+2. Register `stream_001` and push RTMP with `scripts/push_test_stream.sh`.
+3. Open the Vue live page and play HTTP-FLV.
+4. Call `/api/streams/stream_001/status` while pushing and after stopping.
+5. Read `deploy/zlm/config.template.ini` to see which protocols are enabled.
+6. Read `backend/app/services/zlm_service.py` to see the control-plane boundary.
 
-## Startup and Failure Recovery
-
-FastAPI starts first because its health endpoint and database initialization do
-not require ZLM. ZLM waits for FastAPI to become healthy before starting, so
-its `on_server_started` and subsequent authorization Hooks cannot race an
-unready control plane. The frontend waits for FastAPI.
-
-Both backend and ZLM use Compose restart policies and health checks.
-`scripts/recovery_smoke_test.sh` restarts each service and then verifies device
-registration, publish authorization, QoS, stream removal, and offline alerts.
-`scripts/failure_recovery_test.sh` stops FastAPI during publish authorization;
-ZLM retries Hook delivery up to five times at one-second intervals and the test
-asserts that the stream registers after the control plane returns.
-An active FFmpeg publisher does not reconnect automatically after a media
-server restart; production senders must implement retry and backoff.
-
-## Protocol Choices
-
-HTTP-FLV remains the simple MSE baseline. WebRTC uses real SDP offer/answer
-exchange with ZLM and RTC port 8001; public deployments must provide a
-reachable ICE candidate address. HLS is kept for compatibility and native
-browser playback where available.
-
-## Thesis Value
-
-The project supports source-PTS latency sampling, weak-network and concurrent
-stream experiments, source-level ZLM QoS monitoring, and Hook-driven
-authorization and alerting in a drone inspection scenario.
+Advanced work (WebRTC, Hook, recording, QoS, benchmarks) lives on
+`advanced-archive` and should be moved back item by item.

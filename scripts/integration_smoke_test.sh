@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8000}"
-ZLM_URL="${ZLM_URL:-http://127.0.0.1:8080}"
 STREAM_ID="${STREAM_ID:-smoke_001}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-30}"
 PUSH_PID=""
@@ -20,17 +19,13 @@ if [[ ! "${STREAM_ID}" =~ ^[A-Za-z0-9_-]+$ ]]; then
   echo "invalid STREAM_ID" >&2
   exit 2
 fi
-if [[ -z "${DRONE_STREAM_ZLM_SECRET:-}" ]]; then
-  echo "DRONE_STREAM_ZLM_SECRET must be set" >&2
-  exit 2
-fi
 
 curl --fail --silent --show-error "${BACKEND_URL}/api/health" >/dev/null
 
 status="$(
   curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
     -H 'Content-Type: application/json' \
-    -d "{\"name\":\"Smoke test\",\"stream_id\":\"${STREAM_ID}\",\"enabled\":true}" \
+    -d "{\"name\":\"Smoke test\",\"stream_id\":\"${STREAM_ID}\"}" \
     "${BACKEND_URL}/api/devices"
 )"
 if [[ "${status}" != "201" && "${status}" != "409" ]]; then
@@ -60,20 +55,10 @@ wait_for_state() {
 }
 
 wait_for_state true
-ZLM_URL="${ZLM_URL}" "${ROOT_DIR}/scripts/query_stream_qos.sh" "${STREAM_ID}" 1000 >/dev/null
 
 kill "${PUSH_PID}"
 wait "${PUSH_PID}" 2>/dev/null || true
 PUSH_PID=""
 wait_for_state false
-
-curl --fail --silent "${BACKEND_URL}/api/alerts" |
-  python3 -c \
-    'import json,sys
-stream=sys.argv[1]
-alerts=json.load(sys.stdin)
-ok=any(a.get("stream_id")==stream and a.get("category")=="stream_offline" for a in alerts)
-raise SystemExit(not ok)' \
-    "${STREAM_ID}"
 
 echo "integration smoke test passed for ${STREAM_ID}"

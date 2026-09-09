@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 
-import { type Alert, listAlerts } from "../api/alert";
 import { type Device, listDevices } from "../api/device";
 
 const devices = ref<Device[]>([]);
-const alerts = ref<Alert[]>([]);
 
 onMounted(async () => {
   devices.value = await listDevices().catch(() => []);
-  alerts.value = await listAlerts().catch(() => []);
 });
 </script>
 
@@ -22,12 +19,12 @@ onMounted(async () => {
         <strong>{{ devices.length }}</strong>
       </div>
       <div class="card">
-        <h3>未读告警</h3>
-        <strong>{{ alerts.filter((item) => !item.is_read).length }}</strong>
+        <h3>演示推流地址</h3>
+        <p>rtmp://127.0.0.1/live/stream_001</p>
       </div>
       <div class="card">
-        <h3>主推流地址</h3>
-        <p>rtmp://127.0.0.1/live/drone_001</p>
+        <h3>HTTP-FLV 播放</h3>
+        <p>http://127.0.0.1:8080/live/stream_001.live.flv</p>
       </div>
     </div>
   </section>

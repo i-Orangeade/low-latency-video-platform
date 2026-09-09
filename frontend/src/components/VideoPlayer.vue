@@ -4,28 +4,15 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const props = defineProps<{
   url: string;
-  protocol: string;
 }>();
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const errorMessage = ref("");
 const isLoading = ref(false);
 let player: mpegts.Player | null = null;
-let peerConnection: RTCPeerConnection | null = null;
-let abortController: AbortController | null = null;
 let loadGeneration = 0;
 
 function releaseResources() {
-  abortController?.abort();
-  abortController = null;
-
-  if (peerConnection) {
-    peerConnection.ontrack = null;
-    peerConnection.oniceconnectionstatechange = null;
-    peerConnection.close();
-    peerConnection = null;
-  }
-
   if (player) {
     player.destroy();
     player = null;
@@ -45,35 +32,11 @@ function destroyPlayer() {
   isLoading.value = false;
 }
 
-function waitForIceGathering(pc: RTCPeerConnection): Promise<void> {
-  if (pc.iceGatheringState === "complete") {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      pc.removeEventListener("icegatheringstatechange", handleStateChange);
-      reject(new Error("ICE 候选收集超时"));
-    }, 10_000);
-
-    function handleStateChange() {
-      if (pc.iceGatheringState !== "complete") {
-        return;
-      }
-      window.clearTimeout(timeoutId);
-      pc.removeEventListener("icegatheringstatechange", handleStateChange);
-      resolve();
-    }
-
-    pc.addEventListener("icegatheringstatechange", handleStateChange);
-  });
-}
-
 async function playVideo(video: HTMLVideoElement) {
   try {
     await video.play();
   } catch {
-    // 浏览器仍可通过原生 controls 手动开始播放。
+    // The browser can still start playback through native controls.
   }
 }
 
@@ -92,95 +55,6 @@ function loadFlv(video: HTMLVideoElement) {
   void playVideo(video);
 }
 
-function loadHls(video: HTMLVideoElement) {
-  if (!video.canPlayType("application/vnd.apple.mpegurl")) {
-    throw new Error("当前浏览器不支持原生 HLS 播放");
-  }
-
-  video.src = props.url;
-  video.load();
-  void playVideo(video);
-}
-
-async function loadWebRtc(video: HTMLVideoElement, generation: number) {
-  const endpoint = new URL(props.url, window.location.href);
-  endpoint.searchParams.set("type", "play");
-
-  const pc = new RTCPeerConnection();
-  const controller = new AbortController();
-  const incomingStream = new MediaStream();
-  peerConnection = pc;
-  abortController = controller;
-
-  pc.addTransceiver("audio", { direction: "recvonly" });
-  pc.addTransceiver("video", { direction: "recvonly" });
-
-  pc.ontrack = (event: RTCTrackEvent) => {
-    if (generation !== loadGeneration) {
-      return;
-    }
-
-    const stream = event.streams[0];
-    if (stream) {
-      video.srcObject = stream;
-    } else {
-      incomingStream.addTrack(event.track);
-      video.srcObject = incomingStream;
-    }
-    void playVideo(video);
-  };
-
-  pc.oniceconnectionstatechange = () => {
-    if (
-      generation === loadGeneration &&
-      (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected")
-    ) {
-      errorMessage.value = `WebRTC ICE 连接${pc.iceConnectionState === "failed" ? "失败" : "已断开"}`;
-    }
-  };
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await waitForIceGathering(pc);
-
-  if (generation !== loadGeneration || !pc.localDescription?.sdp) {
-    return;
-  }
-
-  const response = await fetch(endpoint.toString(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=UTF-8"
-    },
-    body: pc.localDescription.sdp,
-    signal: controller.signal
-  });
-
-  if (!response.ok) {
-    throw new Error(`ZLMediaKit WebRTC 接口返回 HTTP ${response.status}`);
-  }
-
-  const answer = (await response.json()) as {
-    code?: number;
-    msg?: string;
-    sdp?: string;
-  };
-  if (answer.code !== 0) {
-    throw new Error(answer.msg || `ZLMediaKit WebRTC 协商失败（code=${answer.code ?? "unknown"}）`);
-  }
-  if (!answer.sdp?.trim()) {
-    throw new Error("ZLMediaKit WebRTC 接口返回了空 SDP");
-  }
-  if (generation !== loadGeneration) {
-    return;
-  }
-
-  await pc.setRemoteDescription({
-    type: "answer",
-    sdp: answer.sdp
-  });
-}
-
 async function loadPlayer() {
   const generation = ++loadGeneration;
   releaseResources();
@@ -194,20 +68,9 @@ async function loadPlayer() {
 
   isLoading.value = true;
   try {
-    if (props.protocol === "flv") {
-      loadFlv(video);
-    } else if (props.protocol === "webrtc") {
-      await loadWebRtc(video, generation);
-    } else if (props.protocol === "hls") {
-      loadHls(video);
-    } else {
-      throw new Error(`浏览器不支持直接播放 ${props.protocol.toUpperCase()} 协议`);
-    }
+    loadFlv(video);
   } catch (error) {
-    if (
-      generation === loadGeneration &&
-      !(error instanceof DOMException && error.name === "AbortError")
-    ) {
+    if (generation === loadGeneration) {
       errorMessage.value = error instanceof Error ? error.message : "播放器加载失败";
       releaseResources();
     }
@@ -218,7 +81,10 @@ async function loadPlayer() {
   }
 }
 
-watch(() => [props.url, props.protocol], () => void loadPlayer());
+watch(
+  () => props.url,
+  () => void loadPlayer()
+);
 onMounted(() => void loadPlayer());
 onBeforeUnmount(destroyPlayer);
 </script>
@@ -226,7 +92,7 @@ onBeforeUnmount(destroyPlayer);
 <template>
   <div class="video-player">
     <video ref="videoRef" controls muted playsinline />
-    <div v-if="isLoading" class="protocol-note">正在连接 {{ protocol.toUpperCase() }} 播放流…</div>
+    <div v-if="isLoading" class="protocol-note">正在连接 HTTP-FLV 播放流…</div>
     <div v-else-if="errorMessage" class="protocol-note error" role="alert">
       {{ errorMessage }}
     </div>

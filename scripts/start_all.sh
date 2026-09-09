@@ -5,6 +5,11 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "${PROJECT_ROOT}"
 
+if [[ ! -f .env ]]; then
+  echo "Missing .env. Copy .env.example first: cp .env.example .env" >&2
+  exit 1
+fi
+
 echo "Starting ZLMediaKit, backend, and frontend..."
 docker compose up -d --build
 

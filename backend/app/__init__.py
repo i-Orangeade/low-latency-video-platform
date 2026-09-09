@@ -1,1 +1,1 @@
-"""Backend package for drone-stream-platform."""
+"""Backend package for low-latency-video-platform."""

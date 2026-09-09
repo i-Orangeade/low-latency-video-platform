@@ -6,9 +6,8 @@ import DeviceCard from "../components/DeviceCard.vue";
 
 const devices = ref<Device[]>([]);
 const form = reactive({
-  name: "巡检无人机 001",
-  stream_id: "drone_001",
-  location: "测试场地"
+  name: "Demo camera 001",
+  stream_id: "stream_001"
 });
 
 async function refresh() {
@@ -31,7 +30,6 @@ onMounted(refresh);
       <div class="grid">
         <input v-model="form.name" class="input" placeholder="设备名称" />
         <input v-model="form.stream_id" class="input" placeholder="流 ID" />
-        <input v-model="form.location" class="input" placeholder="巡检位置" />
       </div>
       <button class="button" style="margin-top: 12px" @click="submit">保存设备</button>
     </div>
