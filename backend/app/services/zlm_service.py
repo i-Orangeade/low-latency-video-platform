@@ -91,12 +91,55 @@ class ZlmService:
             },
         )
 
-    async def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+    async def get_stream_qos(
+        self,
+        stream_id: str,
+        probe_ms: int = 1000,
+        app: str | None = None,
+    ) -> dict[str, Any]:
+        payload = await self._get(
+            "/index/api/getStreamQos",
+            {
+                "secret": self.secret,
+                "vhost": "__defaultVhost__",
+                "app": app or settings.default_app,
+                "stream": stream_id,
+                "probe_ms": probe_ms,
+            },
+            timeout=max(5.0, probe_ms / 1000 + 3.0),
+        )
+        data = payload.get("data") or {}
+        return {
+            "stream_id": stream_id,
+            "probe_ms": int(data.get("probeMs", probe_ms)),
+            "bitrate_kbps": float(data.get("bitrateKbps", 0)),
+            "video_fps": float(data.get("videoFps", 0)),
+            "video_frame_count": int(data.get("videoFrameCount", 0)),
+            "audio_frame_count": int(data.get("audioFrameCount", 0)),
+            "key_frame_count": int(data.get("keyFrameCount", 0)),
+            "average_gop_ms": data.get("averageGopMs"),
+            "first_frame_delay_ms": data.get("firstFrameDelayMs"),
+            "timestamp_rollback_count": int(data.get("timestampRollbackCount", 0)),
+            "reader_count": int(data.get("readerCount", 0)),
+            "total_reader_count": int(data.get("totalReaderCount", 0)),
+            "current_bytes_speed": int(data.get("currentBytesSpeed", 0)),
+            "alive_second": int(data.get("aliveSecond", 0)),
+        }
+
+    async def _get(
+        self,
+        path: str,
+        params: dict[str, Any],
+        timeout: float = 5.0,
+    ) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
-            return response.json()
+            payload = response.json()
+            if payload.get("code", 0) != 0:
+                raise RuntimeError(payload.get("msg") or f"ZLMediaKit API failed: {path}")
+            return payload
 
 
 zlm_service = ZlmService()

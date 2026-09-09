@@ -64,4 +64,6 @@ rtmp://127.0.0.1/live/drone_001
 ./scripts/start_all.sh
 ```
 
-Use the `app` profile only after backend and frontend dependencies are ready.
+Compose starts FastAPI first, waits for its health check, then starts ZLM and
+the frontend. This ordering prevents ZLM startup Hooks from racing an unready
+control plane.

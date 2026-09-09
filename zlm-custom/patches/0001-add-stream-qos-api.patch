@@ -1,0 +1,154 @@
+diff --git a/conf/config.ini b/conf/config.ini
+index 7260037..9581595 100644
+--- a/conf/config.ini
++++ b/conf/config.ini
+@@ -16,6 +16,10 @@
+ # Enable HTTP API debugging. When enabled, it logs the content and responses of each HTTP request.
+ apiDebug=1
+ 
++# 是否启用按时间窗口采样的单流QoS聚合接口 /index/api/getStreamQos
++# Enable the windowed per-stream QoS aggregation API.
++enableStreamQos=1
++
+ # 一些比较敏感的http api在访问时需要提供secret，否则无权限调用
+ # 如果是通过127.0.0.1访问,那么可以不提供secret
+ # For some sensitive HTTP APIs, a secret must be provided when accessing them, otherwise the call is unauthorized.
+diff --git a/server/WebApi.cpp b/server/WebApi.cpp
+index 0ae6b15..c5f6894 100755
+--- a/server/WebApi.cpp
++++ b/server/WebApi.cpp
+@@ -82,6 +82,7 @@ using namespace mediakit;
+ namespace API {
+ #define API_FIELD "api."
+ const string kApiDebug = API_FIELD"apiDebug";
++const string kEnableStreamQos = API_FIELD"enableStreamQos";
+ const string kSecret = API_FIELD"secret";
+ const string kSnapRoot = API_FIELD"snapRoot";
+ const string kDefaultSnap = API_FIELD"defaultSnap";
+@@ -89,6 +90,7 @@ const string kDownloadRoot = API_FIELD"downloadRoot";
+ 
+ static onceToken token([]() {
+     mINI::Instance()[kApiDebug] = "1";
++    mINI::Instance()[kEnableStreamQos] = "1";
+     mINI::Instance()[kSecret] = "035c73f7-bb6b-4889-a715-d9eb2d1925cc";
+     mINI::Instance()[kSnapRoot] = "./www/snap/";
+     mINI::Instance()[kDefaultSnap] = "./www/logo.png";
+@@ -2689,6 +2691,118 @@ void installWebApi() {
+         });
+     });
+ 
++    // Sample decoded frames on the stream owner poller and return aggregated,
++    // low-overhead QoS metrics. This endpoint intentionally reuses addProbe so
++    // it does not add locks or a permanent per-frame statistics path.
++    api_regist("/index/api/getStreamQos", [](API_ARGS_MAP_ASYNC) {
++        CHECK_SECRET();
++        CHECK_ARGS("vhost", "app", "stream");
++
++        GET_CONFIG(bool, enable_stream_qos, API::kEnableStreamQos);
++        if (!enable_stream_qos) {
++            throw ApiRetException("stream qos api is disabled", API::OtherFailed);
++        }
++
++        std::string vhost = allArgs["vhost"];
++        std::string app = allArgs["app"];
++        std::string stream = allArgs["stream"];
++        uint32_t probe_ms = allArgs["probe_ms"].empty() ? 1000 : (uint32_t)allArgs["probe_ms"];
++        if (probe_ms < 100 || probe_ms > 30000) {
++            throw ApiRetException("probe_ms must be between 100 and 30000", API::InvalidArgs);
++        }
++
++        auto src = MediaSource::find(vhost, app, stream);
++        if (!src) {
++            throw ApiRetException("can not find the stream", API::NotFound);
++        }
++
++        src->getOwnerPoller()->async([=]() mutable {
++            src->getMuxer()->addProbe(probe_ms, [=](const std::list<FrameInfo> &info_list) mutable {
++                uint64_t total_bytes = 0;
++                uint64_t video_bytes = 0;
++                uint64_t audio_bytes = 0;
++                uint64_t video_frames = 0;
++                uint64_t audio_frames = 0;
++                uint64_t key_frames = 0;
++                uint64_t config_frames = 0;
++                uint64_t timestamp_rollbacks = 0;
++                uint64_t first_frame_delay_ms = 0;
++                int64_t last_video_key_dts = -1;
++                uint64_t gop_duration_total_ms = 0;
++                uint64_t gop_samples = 0;
++                std::unordered_map<int, int64_t> last_dts;
++                std::unordered_map<int, int64_t> last_video_frame_dts;
++
++                bool first_frame = true;
++                for (const auto &info : info_list) {
++                    total_bytes += info.frame_size;
++                    if (first_frame) {
++                        first_frame_delay_ms = info.recv_stamp;
++                        first_frame = false;
++                    }
++
++                    auto track_type = getTrackType(info.codec_id);
++                    if (track_type == TrackVideo) {
++                        video_bytes += info.frame_size;
++                        if (!info.config_frame) {
++                            auto frame_it = last_video_frame_dts.find(info.index);
++                            if (frame_it == last_video_frame_dts.end() || frame_it->second != info.dts) {
++                                ++video_frames;
++                                last_video_frame_dts[info.index] = info.dts;
++                            }
++                        }
++                        if (info.key_frame && !info.config_frame) {
++                            ++key_frames;
++                            if (last_video_key_dts >= 0 && info.dts >= last_video_key_dts) {
++                                gop_duration_total_ms += (uint64_t)(info.dts - last_video_key_dts);
++                                ++gop_samples;
++                            }
++                            last_video_key_dts = info.dts;
++                        }
++                    } else if (track_type == TrackAudio) {
++                        audio_bytes += info.frame_size;
++                        if (!info.config_frame) {
++                            ++audio_frames;
++                        }
++                    }
++
++                    if (info.config_frame) {
++                        ++config_frames;
++                    }
++                    auto it = last_dts.find(info.index);
++                    if (it != last_dts.end() && info.dts < it->second) {
++                        ++timestamp_rollbacks;
++                    }
++                    last_dts[info.index] = info.dts;
++                }
++
++                auto &data = val["data"];
++                data["vhost"] = vhost;
++                data["app"] = app;
++                data["stream"] = stream;
++                data["probeMs"] = probe_ms;
++                data["frameCount"] = (Json::UInt64)info_list.size();
++                data["videoFrameCount"] = (Json::UInt64)video_frames;
++                data["audioFrameCount"] = (Json::UInt64)audio_frames;
++                data["keyFrameCount"] = (Json::UInt64)key_frames;
++                data["configFrameCount"] = (Json::UInt64)config_frames;
++                data["sampleBytes"] = (Json::UInt64)total_bytes;
++                data["videoBytes"] = (Json::UInt64)video_bytes;
++                data["audioBytes"] = (Json::UInt64)audio_bytes;
++                data["bitrateKbps"] = total_bytes * 8.0 / probe_ms;
++                data["videoFps"] = video_frames * 1000.0 / probe_ms;
++                data["firstFrameDelayMs"] = first_frame ? Json::Value(Json::nullValue) : Json::Value((Json::UInt64)first_frame_delay_ms);
++                data["averageGopMs"] = gop_samples ? Json::Value(gop_duration_total_ms * 1.0 / gop_samples) : Json::Value(Json::nullValue);
++                data["timestampRollbackCount"] = (Json::UInt64)timestamp_rollbacks;
++                data["readerCount"] = src->readerCount();
++                data["totalReaderCount"] = src->totalReaderCount();
++                data["currentBytesSpeed"] = (Json::UInt64)src->getBytesSpeed();
++                data["aliveSecond"] = (Json::UInt64)src->getAliveSecond();
++                invoker(200, headerOut, val.toStyledString());
++            });
++        });
++    });
++
+     api_regist("/index/api/addProbe", [](API_ARGS_MAP_ASYNC) {
+         CHECK_SECRET();
+         CHECK_ARGS("vhost", "app", "stream", "probe_ms");

@@ -27,5 +27,6 @@ class DeviceRead(DeviceBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    is_online: bool
     created_at: datetime
     updated_at: datetime

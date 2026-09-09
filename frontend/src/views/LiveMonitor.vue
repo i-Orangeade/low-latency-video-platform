@@ -3,10 +3,12 @@ import { onMounted, ref } from "vue";
 
 import {
   getPlayUrl,
+  getStreamQos,
   getStreamStatus,
   startRecord,
   stopRecord,
   type StreamProtocol,
+  type StreamQos,
   type StreamStatus
 } from "../api/stream";
 import StreamStatsPanel from "../components/StreamStatsPanel.vue";
@@ -18,14 +20,20 @@ const streamId = ref(store.currentStreamId);
 const protocol = ref<StreamProtocol>(store.currentProtocol);
 const playUrl = ref("");
 const status = ref<StreamStatus | null>(null);
+const qos = ref<StreamQos | null>(null);
 const message = ref("");
 
 async function load() {
   store.setStream(streamId.value);
   store.setProtocol(protocol.value);
-  const play = await getPlayUrl(streamId.value, protocol.value);
+  const [play, currentStatus, currentQos] = await Promise.all([
+    getPlayUrl(streamId.value, protocol.value),
+    getStreamStatus(streamId.value).catch(() => null),
+    getStreamQos(streamId.value, 1000).catch(() => null)
+  ]);
   playUrl.value = play.url;
-  status.value = await getStreamStatus(streamId.value).catch(() => null);
+  status.value = currentStatus;
+  qos.value = currentQos;
 }
 
 async function handleStartRecord() {
@@ -65,7 +73,7 @@ onMounted(load);
     </div>
     <div class="grid" style="grid-template-columns: minmax(420px, 2fr) minmax(260px, 1fr)">
       <VideoPlayer :url="playUrl" :protocol="protocol" />
-      <StreamStatsPanel :status="status" />
+      <StreamStatsPanel :status="status" :qos="qos" />
     </div>
   </section>
 </template>

@@ -9,6 +9,11 @@ export interface Experiment {
   encoder_params?: string | null;
   avg_latency_ms?: number | null;
   max_latency_ms?: number | null;
+  p50_latency_ms?: number | null;
+  p95_latency_ms?: number | null;
+  p99_latency_ms?: number | null;
+  sample_count: number;
+  measurement_method?: string | null;
   bitrate_kbps?: number | null;
   fps?: number | null;
   stutter_count: number;

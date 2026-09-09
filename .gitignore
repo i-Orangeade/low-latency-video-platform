@@ -5,10 +5,11 @@ __pycache__/
 node_modules/
 dist/
 build/
+benchmark-results/
 data/
 .env
 .DS_Store
+.tmp-zlm-source/
 
 deploy/zlm/.api_secret
 .env
-deploy/zlm/config.local.ini

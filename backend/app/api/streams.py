@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas.stream import PlayUrlResponse, StreamStatusResponse
+from app.schemas.stream import PlayUrlResponse, StreamQosResponse, StreamStatusResponse
 from app.services.zlm_service import zlm_service
 
 router = APIRouter(prefix="/streams", tags=["streams"])
@@ -28,6 +28,20 @@ async def get_stream_status(stream_id: str) -> dict:
         return await zlm_service.get_stream_status(stream_id)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"failed to query ZLMediaKit: {exc}") from exc
+
+
+@router.get("/{stream_id}/qos", response_model=StreamQosResponse)
+async def get_stream_qos(
+    stream_id: str,
+    probe_ms: int = Query(1000, ge=100, le=30000),
+) -> dict:
+    try:
+        return await zlm_service.get_stream_qos(stream_id, probe_ms)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"failed to sample ZLMediaKit QoS: {exc}",
+        ) from exc
 
 
 @router.post("/{stream_id}/start-record")
