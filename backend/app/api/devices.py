@@ -26,6 +26,14 @@ def create_device(device_in: DeviceCreate, db: Session = Depends(get_db)) -> Dev
     return device
 
 
+@router.get("/{device_id}", response_model=DeviceRead)
+def get_device(device_id: int, db: Session = Depends(get_db)) -> Device:
+    device = db.get(Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="device not found")
+    return device
+
+
 @router.put("/{device_id}", response_model=DeviceRead)
 def update_device(device_id: int, device_in: DeviceUpdate, db: Session = Depends(get_db)) -> Device:
     device = db.get(Device, device_id)
