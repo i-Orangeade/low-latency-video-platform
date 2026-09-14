@@ -1,21 +1,21 @@
-# Low Latency Video Platform
+# Low-Latency Live Video Platform
 
-基础版低延迟视频监控平台：FFmpeg 推 RTMP，官方 ZLMediaKit 转 HTTP-FLV，Vue 播放，FastAPI 只管理设备和流状态。
+基础版低延迟实时视频平台：摄像头、编码器或 FFmpeg 测试源推送 RTMP，官方 ZLMediaKit 转 HTTP-FLV，Vue 播放，FastAPI 只管理视频源和流状态。
 
 完整进阶能力（WebRTC、Hook、告警、录像、QoS、压测、自定义 ZLM）保存在 `advanced-archive` 分支，需要时从该分支迁回，而不是重新开发。
 
 ## 架构
 
 ```text
-测试源或摄像头
+摄像头、编码器或测试源
   -> FFmpeg (H.264/AAC, RTMP)
   -> 官方 ZLMediaKit
        -> HTTP-FLV -> Vue (mpegts.js)
-       -> getMediaList -> FastAPI -> SQLite 设备表
-浏览器 -> FastAPI（设备 CRUD、播放地址、流状态）
+       -> getMediaList -> FastAPI -> SQLite 视频源表
+浏览器 -> FastAPI（视频源 CRUD、播放地址、流状态）
 ```
 
-视频不经过 FastAPI。媒体面由 ZLMediaKit 负责接流和分发，控制面只查询状态并登记设备。
+视频不经过 FastAPI。媒体面由 ZLMediaKit 负责接流和分发，控制面只查询状态并登记视频源。
 
 ## 快速启动
 
@@ -31,7 +31,7 @@ cp .env.example .env
 ./scripts/start_all.sh
 ```
 
-登记演示设备并推测试流：
+登记演示视频源并推测试流：
 
 ```bash
 ./scripts/push_test_stream.sh
@@ -45,19 +45,19 @@ cp .env.example .env
 - RTMP 推流：`rtmp://127.0.0.1/live/stream_001`
 - HTTP-FLV：`http://127.0.0.1:8080/live/stream_001.live.flv`
 
-## 设备登记
+## 视频源登记
 
-设备表只有 `id`、`name`、`stream_id`。登记不是推流门禁，只是演示管理。也可以用 API：
+视频源表只有 `id`、`name`、`stream_id`。登记不是推流门禁，只是演示管理。也可以用 API：
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/devices \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Demo camera 001","stream_id":"stream_001"}'
+  -d '{"name":"Demo source 001","stream_id":"stream_001"}'
 ```
 
 ## RTMP 推流
 
-任意客户端都可以向 `rtmp://127.0.0.1/live/{stream_id}` 推流。`push_test_stream.sh` 会先登记 `stream_001`，再调用 FFmpeg 生成测试画面。也可以传入本地视频：
+任意客户端、摄像头或编码器都可以向 `rtmp://127.0.0.1/live/{stream_id}` 推流。`push_test_stream.sh` 会先登记 `stream_001`，再调用 FFmpeg 生成测试画面。也可以传入本地视频：
 
 ```bash
 ./scripts/push_test_stream.sh /path/to/demo.mp4
@@ -113,7 +113,7 @@ npm audit --audit-level=high
 ./scripts/integration_smoke_test.sh
 ```
 
-它会走：健康检查 → 登记设备 → 推流 → `status.online=true` → 停流 → `status.online=false`。
+它会走：健康检查 → 登记视频源 → 推流 → `status.online=true` → 停流 → `status.online=false`。
 
 ## 进阶版
 

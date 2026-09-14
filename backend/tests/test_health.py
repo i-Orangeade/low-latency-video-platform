@@ -3,4 +3,4 @@ def test_health(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["service"] == "low-latency-video-platform"
+    assert payload["service"] == "Low-Latency Live Video Platform"

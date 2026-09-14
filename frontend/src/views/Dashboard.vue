@@ -15,7 +15,7 @@ onMounted(async () => {
     <h2 class="page-title">系统总览</h2>
     <div class="grid">
       <div class="card">
-        <h3>设备数量</h3>
+        <h3>视频源数量</h3>
         <strong>{{ devices.length }}</strong>
       </div>
       <div class="card">

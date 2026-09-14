@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "low-latency-video-platform"
+    app_name: str = "Low-Latency Live Video Platform"
     host: str = "0.0.0.0"
     port: int = 8000
     reload: bool = False

@@ -1,1 +1,1 @@
-"""Backend package for low-latency-video-platform."""
+"""Backend package for Low-Latency Live Video Platform."""

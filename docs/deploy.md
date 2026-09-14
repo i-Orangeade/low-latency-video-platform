@@ -14,7 +14,7 @@ cp .env.example .env
 ```
 
 Set `LLVP_ZLM_SECRET`. Compose injects this value into the official ZLMediaKit
-config template and into FastAPI.
+config template and into the FastAPI control plane.
 
 ## Start Services
 
@@ -26,7 +26,7 @@ This starts three containers: `llvp-zlm`, `llvp-backend`, and `llvp-frontend`.
 ZLM uses a digest-pinned official image and only publishes RTMP `1935` and
 HTTP `8080`.
 
-## Register a Device and Push
+## Register a Video Source and Push
 
 ```bash
 ./scripts/push_test_stream.sh

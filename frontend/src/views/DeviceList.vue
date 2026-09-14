@@ -6,7 +6,7 @@ import DeviceCard from "../components/DeviceCard.vue";
 
 const devices = ref<Device[]>([]);
 const form = reactive({
-  name: "Demo camera 001",
+  name: "Demo source 001",
   stream_id: "stream_001"
 });
 
@@ -24,14 +24,14 @@ onMounted(refresh);
 
 <template>
   <section>
-    <h2 class="page-title">设备管理</h2>
+    <h2 class="page-title">视频源管理</h2>
     <div class="card" style="margin-bottom: 16px">
-      <h3>新增设备</h3>
+      <h3>新增视频源</h3>
       <div class="grid">
-        <input v-model="form.name" class="input" placeholder="设备名称" />
+        <input v-model="form.name" class="input" placeholder="视频源名称" />
         <input v-model="form.stream_id" class="input" placeholder="流 ID" />
       </div>
-      <button class="button" style="margin-top: 12px" @click="submit">保存设备</button>
+      <button class="button" style="margin-top: 12px" @click="submit">保存视频源</button>
     </div>
     <div class="grid">
       <DeviceCard v-for="device in devices" :key="device.id" :device="device" />

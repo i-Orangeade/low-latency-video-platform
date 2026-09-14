@@ -1,33 +1,34 @@
-# Architecture
+# Low-Latency Live Video Platform Architecture
 
 ## Goal
 
-The base platform ingests a live test source or camera over RTMP, converts it
-to HTTP-FLV with a pinned official ZLMediaKit image, and lets a Vue player
-watch it. FastAPI only registers devices and queries stream status.
+The base platform ingests a live source from a camera, encoder, or FFmpeg test
+source over RTMP, converts it to HTTP-FLV with a pinned official ZLMediaKit
+image, and lets a Vue player watch it. FastAPI only registers video sources and
+queries stream status.
 
 ## Data Flow
 
 ```text
-Camera or FFmpeg test source
+Camera, encoder, or FFmpeg test source
   -> RTMP
   -> Official ZLMediaKit
   -> HTTP-FLV
   -> Browser (mpegts.js)
 
 Browser
-  -> FastAPI device and stream APIs
-  -> SQLite device table
+  -> FastAPI video-source and stream APIs
+  -> SQLite video-source table
   -> ZLMediaKit getMediaList
 ```
 
 ## Media Plane vs Control Plane
 
 ZLMediaKit owns ingest, protocol conversion, and HTTP-FLV delivery. FastAPI
-never forwards media packets. It stores `id/name/stream_id` devices and asks
+never forwards media packets. It stores `id/name/stream_id` video sources and asks
 ZLMediaKit whether a stream is currently published.
 
-Device registration is a demo catalog, not a publish gate. Any client may push
+Video-source registration is a demo catalog, not a publish gate. Any client may push
 to `rtmp://host/live/{stream_id}`.
 
 ## Learning Order

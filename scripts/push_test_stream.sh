@@ -16,7 +16,7 @@ fi
 status="$(
   curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
     -H 'Content-Type: application/json' \
-    -d "{\"name\":\"Demo camera ${STREAM_ID}\",\"stream_id\":\"${STREAM_ID}\"}" \
+    -d "{\"name\":\"Demo source ${STREAM_ID}\",\"stream_id\":\"${STREAM_ID}\"}" \
     "${BACKEND_URL}/api/devices"
 )"
 case "${status}" in
