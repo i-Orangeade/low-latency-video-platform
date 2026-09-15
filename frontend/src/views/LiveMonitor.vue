@@ -10,6 +10,8 @@ const playUrl = ref("");
 const status = ref<StreamStatus | null>(null);
 
 async function load() {
+  // 播放地址和在线状态互不依赖，并行请求可以减少切换视频源的等待时间。
+  // 播放地址失败会直接抛出；状态查询失败则降级为 null，不影响播放器继续尝试连接。
   const [play, currentStatus] = await Promise.all([
     getPlayUrl(streamId.value),
     getStreamStatus(streamId.value).catch(() => null)

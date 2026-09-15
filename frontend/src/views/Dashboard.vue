@@ -6,6 +6,7 @@ import { type Device, listDevices } from "../api/device";
 const devices = ref<Device[]>([]);
 
 onMounted(async () => {
+  // 总览页只读取视频源数量；接口失败时降级为空列表。
   devices.value = await listDevices().catch(() => []);
 });
 </script>

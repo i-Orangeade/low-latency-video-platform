@@ -1,3 +1,14 @@
+# 本地容器编排。
+# 三个容器分工：
+# - zlm：接收 RTMP 推流，向浏览器提供 HTTP-FLV 播放；
+# - backend：提供设备管理和流状态 API，不转发实际视频数据；
+# - frontend：提供 Vue 页面，并把 /api 请求代理给 backend。
+#
+# 浏览器的主要访问路径：
+# - http://127.0.0.1:5173                  前端页面；
+# - http://127.0.0.1:8000/api              后端 API，也可通过前端 /api 代理访问；
+# - http://127.0.0.1:8080/live/<id>.live.flv  HTTP-FLV 媒体出口。
+# - rtmp://127.0.0.1:1935/live/<id>          RTMP 媒体入口。
 services:
   zlm:
     image: zlmediakit/zlmediakit@sha256:c277aa7fca72e514fe071cc167da994ea5f60e4a39b1519d4939ab63acbe3135
@@ -5,6 +16,8 @@ services:
     restart: unless-stopped
     working_dir: /opt/media/bin
     entrypoint: ["/bin/sh", "/opt/media/bin/llvp-entrypoint.sh"]
+    # 8080 是宿主机播放端口，映射到容器内 ZLM 的 HTTP 80 端口；
+    # 1935 保持同名端口，是 FFmpeg/OBS 等推流客户端的 RTMP 入口。
     ports:
       - "8080:80"
       - "1935:1935"
@@ -35,6 +48,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # backend 容器内部通过 Docker DNS 名称 zlm 访问 ZLM API。
+      # 但返回给浏览器的 URL 必须使用宿主机 127.0.0.1，因为浏览器无法解析容器名 zlm。
       LLVP_ZLM_BASE_URL: http://zlm
       LLVP_ZLM_SECRET: ${LLVP_ZLM_SECRET}
       LLVP_PUBLIC_ZLM_HOST: 127.0.0.1
@@ -64,5 +79,6 @@ services:
     ports:
       - "5173:80"
     depends_on:
+      # 等后端健康检查通过后再启动前端，避免首屏请求 API 时连接失败。
       backend:
         condition: service_healthy

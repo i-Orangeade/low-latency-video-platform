@@ -1,3 +1,6 @@
+# 视频源管理 API。
+# 这一层只处理 HTTP 语义：校验后的请求、404/409 错误、数据库提交和响应状态码。
+# 字段格式由 schemas/device.py 负责，表结构由 models/device.py 负责。
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -9,6 +12,8 @@ router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 def get_device_or_404(device_id: int, db: Session) -> Device:
+    # GET、PUT、DELETE 都必须先确认资源存在。
+    # 将查询和 404 响应集中在这里，可以保证三个接口的错误信息完全一致。
     device = db.get(Device, device_id)
     if not device:
         raise HTTPException(
@@ -23,6 +28,8 @@ def ensure_stream_id_available(
     db: Session,
     exclude_device_id: int | None = None,
 ) -> None:
+    # 创建时 exclude_device_id 为空，只要存在相同 stream_id 就视为冲突。
+    # 更新时排除当前设备，允许请求继续携带设备自己的原 stream_id。
     query = db.query(Device).filter(Device.stream_id == stream_id)
     if exclude_device_id is not None:
         query = query.filter(Device.id != exclude_device_id)
@@ -36,11 +43,13 @@ def ensure_stream_id_available(
 
 @router.get("", response_model=list[DeviceRead])
 def list_devices(db: Session = Depends(get_db)) -> list[Device]:
+    # 最新创建的视频源排在前面，便于前端直接展示最近添加的数据。
     return db.query(Device).order_by(Device.id.desc()).all()
 
 
 @router.post("", response_model=DeviceRead, status_code=status.HTTP_201_CREATED)
 def create_device(device_in: DeviceCreate, db: Session = Depends(get_db)) -> Device:
+    # 先检查业务冲突，再执行插入。成功创建返回 201 和完整资源。
     ensure_stream_id_available(device_in.stream_id, db)
 
     device = Device(**device_in.model_dump())
@@ -52,13 +61,16 @@ def create_device(device_in: DeviceCreate, db: Session = Depends(get_db)) -> Dev
 
 @router.get("/{device_id}", response_model=DeviceRead)
 def get_device(device_id: int, db: Session = Depends(get_db)) -> Device:
+    # 单个资源查询不存在时统一返回 404。
     return get_device_or_404(device_id, db)
 
 
 @router.put("/{device_id}", response_model=DeviceRead)
 def update_device(device_id: int, device_in: DeviceUpdate, db: Session = Depends(get_db)) -> Device:
+    # 更新流程依次处理：资源是否存在 -> stream_id 是否冲突 -> 写入字段并提交。
     device = get_device_or_404(device_id, db)
 
+    # 只处理客户端实际提交的字段，未提交字段保持数据库中的原值。
     updates = device_in.model_dump(exclude_unset=True)
     if "stream_id" in updates:
         ensure_stream_id_available(
@@ -77,6 +89,7 @@ def update_device(device_id: int, device_in: DeviceUpdate, db: Session = Depends
 
 @router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_device(device_id: int, db: Session = Depends(get_db)) -> None:
+    # 删除成功返回 204，不返回响应体；资源不存在则返回 404。
     device = get_device_or_404(device_id, db)
 
     db.delete(device)

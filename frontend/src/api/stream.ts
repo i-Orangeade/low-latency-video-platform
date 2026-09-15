@@ -1,5 +1,7 @@
 import { apiGet } from "./client";
 
+// 与后端 schemas/stream.py 对应。
+// play-url 只返回地址，stream status 返回 ZLM 当前是否在线及观看统计。
 export interface PlayUrlResponse {
   stream_id: string;
   protocol: string;
