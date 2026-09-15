@@ -45,6 +45,8 @@ class DeviceUpdate(BaseModel):
     @field_validator("name", "stream_id", mode="before")
     @classmethod
     def strip_text_fields(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("field may not be null")
         return strip_string(value)
 
     @field_validator("stream_id")
