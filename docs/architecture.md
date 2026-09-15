@@ -19,7 +19,7 @@ Camera, encoder, or FFmpeg test source
 Browser
   -> FastAPI video-source and stream APIs
   -> SQLite video-source table
-  -> ZLMediaKit getMediaList
+  -> ZLMediaKit getMediaList (single-stream or aggregated)
 ```
 
 ## Media Plane vs Control Plane
@@ -39,6 +39,8 @@ to `rtmp://host/live/{stream_id}`.
 4. Call `/api/streams/stream_001/status` while pushing and after stopping.
 5. Read `deploy/zlm/config.template.ini` to see which protocols are enabled.
 6. Read `backend/app/services/zlm_service.py` to see the control-plane boundary.
+7. Call `/api/devices/status` to see how the database video-source list is joined
+   with one aggregated ZLMediaKit media query.
 
 Advanced work (WebRTC, Hook, recording, QoS, benchmarks) lives on
 `advanced-archive` and should be moved back item by item.

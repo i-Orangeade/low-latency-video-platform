@@ -51,3 +51,33 @@ def test_get_stream_status_raises_when_zlm_returns_error_code() -> None:
         raise AssertionError("expected RuntimeError")
     except RuntimeError as exc:
         assert "unauthorized" in str(exc)
+
+
+def test_get_stream_statuses_aggregates_media_list() -> None:
+    service = ZlmService()
+    service._get = AsyncMock(
+        return_value={
+            "code": 0,
+            "data": [
+                {
+                    "stream": "stream_001",
+                    "app": "live",
+                    "schema": "rtmp",
+                    "originTypeStr": "rtmp_push",
+                    "readerCount": 1,
+                    "totalReaderCount": 2,
+                    "tracks": [{"codec_id": 0}],
+                }
+            ],
+        }
+    )
+
+    result = asyncio.run(
+        service.get_stream_statuses(["stream_001", "stream_002"])
+    )
+
+    assert result["stream_001"]["online"] is True
+    assert result["stream_001"]["reader_count"] == 1
+    assert result["stream_002"]["online"] is False
+    service._get.assert_awaited_once()
+    assert "stream" not in service._get.call_args.args[1]

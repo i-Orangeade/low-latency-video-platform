@@ -1,12 +1,13 @@
 # 视频源管理 API。
 # 这一层只处理 HTTP 语义：校验后的请求、404/409 错误、数据库提交和响应状态码。
-# 字段格式由 schemas/device.py 负责，表结构由 models/device.py 负责。
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.device import Device
 from app.schemas.device import DeviceCreate, DeviceRead, DeviceUpdate
+from app.schemas.stream import DeviceStatusItem, DeviceStatusSummary
+from app.services.zlm_service import zlm_service
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -45,6 +46,45 @@ def ensure_stream_id_available(
 def list_devices(db: Session = Depends(get_db)) -> list[Device]:
     # 最新创建的视频源排在前面，便于前端直接展示最近添加的数据。
     return db.query(Device).order_by(Device.id.desc()).all()
+
+
+@router.get("/status", response_model=DeviceStatusSummary)
+async def get_device_status_summary(db: Session = Depends(get_db)) -> DeviceStatusSummary:
+    # 先读取业务库中的视频源清单，再用一次 ZLM 聚合查询补充实时状态。
+    devices = db.query(Device).order_by(Device.id.desc()).all()
+    if not devices:
+        return DeviceStatusSummary(total=0, online=0, offline=0, devices=[])
+
+    try:
+        statuses = await zlm_service.get_stream_statuses(
+            [device.stream_id for device in devices]
+        )
+    except Exception as exc:
+        # 聚合接口也依赖 ZLM；上游不可用时返回网关错误，而不是部分伪造结果。
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"failed to query ZLMediaKit: {exc}",
+        ) from exc
+
+    items = []
+    for device in devices:
+        stream_status = statuses[device.stream_id]
+        items.append(
+            DeviceStatusItem(
+                id=device.id,
+                name=device.name,
+                stream_id=device.stream_id,
+                **{key: value for key, value in stream_status.items() if key != "stream_id"},
+            )
+        )
+
+    online_count = sum(item.online for item in items)
+    return DeviceStatusSummary(
+        total=len(items),
+        online=online_count,
+        offline=len(items) - online_count,
+        devices=items,
+    )
 
 
 @router.post("", response_model=DeviceRead, status_code=status.HTTP_201_CREATED)

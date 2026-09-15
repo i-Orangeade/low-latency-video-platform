@@ -87,6 +87,16 @@ GET /api/streams/stream_001/status
 
 `online=true` 表示该 `stream_id` 当前有媒体。停推后应变为 `false`。
 
+也可以一次查看所有已登记视频源的状态汇总：
+
+```text
+GET /api/devices/status
+```
+
+响应包含 `total`、`online`、`offline` 三个统计数字，以及带有实时状态的
+`devices` 明细数组。该接口会对 ZLMediaKit 执行一次批量查询，不会为每个视频源
+单独发送请求。
+
 ## 开发验证
 
 后端：

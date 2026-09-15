@@ -56,6 +56,54 @@ class ZlmService:
             "raw": media,
         }
 
+    async def get_stream_statuses(
+        self,
+        stream_ids: list[str],
+        app: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        # 聚合查询只调用一次 getMediaList，再按 stream_id 建索引。
+        # 这样视频源数量增加时，上游请求次数不会随设备数量线性增长。
+        app_name = app or settings.default_app
+        payload = await self._get(
+            "/index/api/getMediaList",
+            {
+                "secret": settings.zlm_secret,
+                "vhost": "__defaultVhost__",
+                "app": app_name,
+            },
+        )
+
+        media_by_stream = {
+            media.get("stream"): media
+            for media in (payload.get("data") or [])
+            if media.get("stream")
+        }
+        statuses: dict[str, dict[str, Any]] = {}
+        for stream_id in stream_ids:
+            media = media_by_stream.get(stream_id)
+            if media is None:
+                statuses[stream_id] = {
+                    "stream_id": stream_id,
+                    "online": False,
+                    "app": app_name,
+                    "reader_count": 0,
+                    "total_reader_count": 0,
+                    "tracks": [],
+                }
+                continue
+
+            statuses[stream_id] = {
+                "stream_id": stream_id,
+                "online": True,
+                "app": media.get("app", app_name),
+                "schema_name": media.get("schema"),
+                "origin_type": media.get("originTypeStr"),
+                "reader_count": media.get("readerCount", 0),
+                "total_reader_count": media.get("totalReaderCount", 0),
+                "tracks": media.get("tracks") or [],
+            }
+        return statuses
+
     async def _get(self, path: str, params: dict[str, Any], timeout: float = 5.0) -> dict[str, Any]:
         # 统一封装 ZLM HTTP API 调用：
         # 1. HTTP 状态码异常时由 raise_for_status 抛出；
