@@ -76,6 +76,47 @@ def test_get_stream_status_ignores_mismatched_stream(monkeypatch) -> None:
     assert result.raw["data"][0]["stream"] == "other_stream"
 
 
+def test_get_stream_status_finds_target_stream_after_other_records(monkeypatch) -> None:
+    service = StreamStatusService()
+    get_media_list = AsyncMock(
+        return_value={
+            "code": 0,
+            "data": [
+                {"app": "live", "stream": "other_stream", "schema": "rtmp"},
+                {
+                    "app": "live",
+                    "stream": "stream_001",
+                    "schema": "rtmp",
+                    "readerCount": 2,
+                },
+            ],
+        }
+    )
+    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+
+    result = asyncio.run(service.get_status("stream_001"))
+
+    assert result.online is True
+    assert result.reader_count == 2
+    assert result.raw["stream"] == "stream_001"
+
+
+def test_get_stream_status_does_not_use_record_without_stream_id(monkeypatch) -> None:
+    service = StreamStatusService()
+    get_media_list = AsyncMock(
+        return_value={
+            "code": 0,
+            "data": [{"app": "live", "schema": "rtmp", "readerCount": 9}],
+        }
+    )
+    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+
+    result = asyncio.run(service.get_status("stream_001"))
+
+    assert result.online is False
+    assert result.raw["data"][0]["readerCount"] == 9
+
+
 def test_get_stream_status_rejects_malformed_media_list(monkeypatch) -> None:
     service = StreamStatusService()
     get_media_list = AsyncMock(return_value={"code": 0, "data": {"unexpected": True}})

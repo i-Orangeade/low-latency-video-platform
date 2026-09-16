@@ -81,7 +81,7 @@ class StreamStatusService:
         for media in media_list:
             if media.get("stream") == stream_id:
                 return media
-        return media_list[0] if media_list and media_list[0].get("stream") is None else None
+        return None
 
 
 stream_status_service = StreamStatusService()
