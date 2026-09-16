@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 
-import { type Device, listDevices } from "../api/device";
+import {
+  type VideoSourceStatusSummary,
+  getVideoSourceStatusSummary
+} from "../api/videoSource";
 
-const devices = ref<Device[]>([]);
+const summary = ref<VideoSourceStatusSummary>({
+  total: 0,
+  online: 0,
+  offline: 0,
+  video_sources: []
+});
 
 onMounted(async () => {
-  // 总览页只读取视频源数量；接口失败时降级为空列表。
-  devices.value = await listDevices().catch(() => []);
+  summary.value = await getVideoSourceStatusSummary().catch(() => summary.value);
 });
 </script>
 
@@ -17,7 +24,15 @@ onMounted(async () => {
     <div class="grid">
       <div class="card">
         <h3>视频源数量</h3>
-        <strong>{{ devices.length }}</strong>
+        <strong>{{ summary.total }}</strong>
+      </div>
+      <div class="card">
+        <h3>在线视频源</h3>
+        <strong>{{ summary.online }}</strong>
+      </div>
+      <div class="card">
+        <h3>离线视频源</h3>
+        <strong>{{ summary.offline }}</strong>
       </div>
       <div class="card">
         <h3>演示推流地址</h3>

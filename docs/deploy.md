@@ -56,7 +56,7 @@ Control plane:
 
 ```text
 GET /api/health
-GET /api/devices
+GET /api/video-sources
 GET /api/streams/stream_001/play-url
 GET /api/streams/stream_001/status
 ```

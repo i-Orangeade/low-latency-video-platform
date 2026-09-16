@@ -7,7 +7,7 @@ class PlayUrlResponse(BaseModel):
     url: str
 
 
-class StreamStatusResponse(BaseModel):
+class StreamStatus(BaseModel):
     stream_id: str
     online: bool
     app: str
@@ -16,28 +16,19 @@ class StreamStatusResponse(BaseModel):
     reader_count: int = 0
     total_reader_count: int = 0
     tracks: list[dict] = Field(default_factory=list)
+
+
+class StreamStatusResponse(StreamStatus):
     raw: dict = Field(default_factory=dict)
 
 
-class DeviceStatusItem(BaseModel):
-    """一个已登记视频源及其当前媒体状态。"""
-
+class VideoSourceStatusItem(StreamStatus):
     id: int
     name: str
-    stream_id: str
-    online: bool
-    app: str
-    schema_name: str | None = None
-    origin_type: str | None = None
-    reader_count: int = 0
-    total_reader_count: int = 0
-    tracks: list[dict] = Field(default_factory=list)
 
 
-class DeviceStatusSummary(BaseModel):
-    """所有已登记视频源的状态统计和明细。"""
-
+class VideoSourceStatusSummary(BaseModel):
     total: int
     online: int
     offline: int
-    devices: list[DeviceStatusItem] = Field(default_factory=list)
+    video_sources: list[VideoSourceStatusItem] = Field(default_factory=list)

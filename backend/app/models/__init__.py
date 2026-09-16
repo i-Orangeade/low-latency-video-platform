@@ -1,3 +1,3 @@
-from app.models.device import Device
+from app.models.video_source import VideoSource
 
-__all__ = ["Device"]
+__all__ = ["VideoSource"]

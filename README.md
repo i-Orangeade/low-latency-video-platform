@@ -50,7 +50,7 @@ cp .env.example .env
 视频源表只有 `id`、`name`、`stream_id`。登记不是推流门禁，只是演示管理。也可以用 API：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/devices \
+curl -X POST http://127.0.0.1:8000/api/video-sources \
   -H 'Content-Type: application/json' \
   -d '{"name":"Demo source 001","stream_id":"stream_001"}'
 ```
@@ -86,16 +86,6 @@ GET /api/streams/stream_001/status
 ```
 
 `online=true` 表示该 `stream_id` 当前有媒体。停推后应变为 `false`。
-
-也可以一次查看所有已登记视频源的状态汇总：
-
-```text
-GET /api/devices/status
-```
-
-响应包含 `total`、`online`、`offline` 三个统计数字，以及带有实时状态的
-`devices` 明细数组。该接口会对 ZLMediaKit 执行一次批量查询，不会为每个视频源
-单独发送请求。
 
 ## 开发验证
 

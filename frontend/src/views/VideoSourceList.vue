@@ -1,23 +1,21 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
 
-import { createDevice, type Device, listDevices } from "../api/device";
-import DeviceCard from "../components/DeviceCard.vue";
+import { createVideoSource, type VideoSource, listVideoSources } from "../api/videoSource";
+import VideoSourceCard from "../components/VideoSourceCard.vue";
 
-const devices = ref<Device[]>([]);
+const videoSources = ref<VideoSource[]>([]);
 const form = reactive({
-  // 默认值让首次打开页面时可以直接点击保存，快速体验完整流程。
   name: "Demo source 001",
   stream_id: "stream_001"
 });
 
 async function refresh() {
-  devices.value = await listDevices().catch(() => []);
+  videoSources.value = await listVideoSources().catch(() => []);
 }
 
 async function submit() {
-  // 创建成功后重新拉取列表，页面始终以后端数据库返回的数据为准。
-  await createDevice(form);
+  await createVideoSource(form);
   await refresh();
 }
 
@@ -36,7 +34,11 @@ onMounted(refresh);
       <button class="button" style="margin-top: 12px" @click="submit">保存视频源</button>
     </div>
     <div class="grid">
-      <DeviceCard v-for="device in devices" :key="device.id" :device="device" />
+      <VideoSourceCard
+        v-for="source in videoSources"
+        :key="source.id"
+        :source="source"
+      />
     </div>
   </section>
 </template>

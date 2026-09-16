@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
-from app.services.zlm_service import zlm_service
+from app.schemas.stream import StreamStatusResponse
+from app.services.stream_status_service import stream_status_service
 
 
 def test_play_url_returns_http_flv(client) -> None:
@@ -14,20 +15,20 @@ def test_play_url_returns_http_flv(client) -> None:
 
 def test_status_online(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        zlm_service,
-        "get_stream_status",
+        stream_status_service,
+        "get_status",
         AsyncMock(
-            return_value={
-                "stream_id": "stream_001",
-                "online": True,
-                "app": "live",
-                "schema_name": "rtmp",
-                "origin_type": "rtmp_push",
-                "reader_count": 1,
-                "total_reader_count": 2,
-                "tracks": [{"codec_id": 0}],
-                "raw": {"schema": "rtmp"},
-            }
+            return_value=StreamStatusResponse(
+                stream_id="stream_001",
+                online=True,
+                app="live",
+                schema_name="rtmp",
+                origin_type="rtmp_push",
+                reader_count=1,
+                total_reader_count=2,
+                tracks=[{"codec_id": 0}],
+                raw={"schema": "rtmp"},
+            )
         ),
     )
 
@@ -40,18 +41,18 @@ def test_status_online(client, monkeypatch) -> None:
 
 def test_status_offline(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        zlm_service,
-        "get_stream_status",
+        stream_status_service,
+        "get_status",
         AsyncMock(
-            return_value={
-                "stream_id": "stream_001",
-                "online": False,
-                "app": "live",
-                "reader_count": 0,
-                "total_reader_count": 0,
-                "tracks": [],
-                "raw": {"code": 0, "data": []},
-            }
+            return_value=StreamStatusResponse(
+                stream_id="stream_001",
+                online=False,
+                app="live",
+                reader_count=0,
+                total_reader_count=0,
+                tracks=[],
+                raw={"code": 0, "data": []},
+            )
         ),
     )
 
@@ -62,8 +63,8 @@ def test_status_offline(client, monkeypatch) -> None:
 
 def test_status_maps_zlm_errors_to_502(client, monkeypatch) -> None:
     monkeypatch.setattr(
-        zlm_service,
-        "get_stream_status",
+        stream_status_service,
+        "get_status",
         AsyncMock(side_effect=RuntimeError("zlm unavailable")),
     )
 

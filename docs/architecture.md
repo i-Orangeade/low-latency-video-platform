@@ -19,7 +19,7 @@ Camera, encoder, or FFmpeg test source
 Browser
   -> FastAPI video-source and stream APIs
   -> SQLite video-source table
-  -> ZLMediaKit getMediaList (single-stream or aggregated)
+  -> ZLMediaKit getMediaList
 ```
 
 ## Media Plane vs Control Plane
@@ -38,9 +38,9 @@ to `rtmp://host/live/{stream_id}`.
 3. Open the Vue live page and play HTTP-FLV.
 4. Call `/api/streams/stream_001/status` while pushing and after stopping.
 5. Read `deploy/zlm/config.template.ini` to see which protocols are enabled.
-6. Read `backend/app/services/zlm_service.py` to see the control-plane boundary.
-7. Call `/api/devices/status` to see how the database video-source list is joined
-   with one aggregated ZLMediaKit media query.
+6. Read `backend/app/services/zlm_client.py` to see the ZLMediaKit HTTP API boundary.
+7. Read `backend/app/services/stream_status_service.py` to see how ZLM media records
+   become platform stream-status responses.
 
 Advanced work (WebRTC, Hook, recording, QoS, benchmarks) lives on
 `advanced-archive` and should be moved back item by item.
