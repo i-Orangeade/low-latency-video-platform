@@ -126,6 +126,17 @@ def test_get_stream_status_rejects_malformed_media_list(monkeypatch) -> None:
         asyncio.run(service.get_status("stream_001"))
 
 
+def test_get_stream_statuses_returns_empty_without_querying_zlm(monkeypatch) -> None:
+    service = StreamStatusService()
+    get_media_list = AsyncMock()
+    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+
+    result = asyncio.run(service.get_statuses([]))
+
+    assert result == {}
+    get_media_list.assert_not_awaited()
+
+
 def test_get_stream_statuses_maps_multiple_video_sources(monkeypatch) -> None:
     service = StreamStatusService()
     get_media_list = AsyncMock(

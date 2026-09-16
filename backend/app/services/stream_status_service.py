@@ -34,6 +34,9 @@ class StreamStatusService:
         return StreamStatusResponse(**status.model_dump(), raw=media)
 
     async def get_statuses(self, stream_ids: list[str], app: str | None = None) -> dict[str, StreamStatus]:
+        if not stream_ids:
+            return {}
+
         app_name = app or settings.default_app
         payload = await zlm_client.get_media_list(app_name)
         media_by_stream = {
