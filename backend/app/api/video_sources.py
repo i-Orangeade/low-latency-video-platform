@@ -6,6 +6,7 @@ from app.models.video_source import VideoSource
 from app.schemas.stream import VideoSourceStatusItem, VideoSourceStatusSummary
 from app.schemas.video_source import VideoSourceCreate, VideoSourceRead, VideoSourceUpdate
 from app.services.stream_status_service import stream_status_service
+from app.services.zlm_errors import ZlmError
 
 router = APIRouter(prefix="/video-sources", tags=["video-sources"])
 
@@ -25,7 +26,7 @@ async def get_video_source_status_summary(db: Session = Depends(get_db)) -> Vide
 
     try:
         statuses = await stream_status_service.get_statuses(stream_ids)
-    except Exception as exc:
+    except ZlmError as exc:
         raise HTTPException(status_code=502, detail=f"failed to query ZLMediaKit: {exc}") from exc
 
     items = [

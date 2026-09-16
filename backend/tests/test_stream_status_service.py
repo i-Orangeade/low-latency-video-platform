@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.services.stream_status_service import StreamStatusService
+from app.services.zlm_errors import ZlmApiError, ZlmResponseError
 from app.services.zlm_client import ZlmClient, zlm_client
 
 
@@ -52,10 +53,35 @@ def test_get_stream_status_offline_when_media_list_empty(monkeypatch) -> None:
 
 def test_get_stream_status_raises_when_zlm_returns_error_code(monkeypatch) -> None:
     service = StreamStatusService()
-    get_media_list = AsyncMock(side_effect=RuntimeError("unauthorized"))
+    get_media_list = AsyncMock(side_effect=ZlmApiError(-1, "unauthorized"))
     monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
 
-    with pytest.raises(RuntimeError, match="unauthorized"):
+    with pytest.raises(ZlmApiError, match="unauthorized"):
+        asyncio.run(service.get_status("stream_001"))
+
+
+def test_get_stream_status_ignores_mismatched_stream(monkeypatch) -> None:
+    service = StreamStatusService()
+    get_media_list = AsyncMock(
+        return_value={
+            "code": 0,
+            "data": [{"app": "live", "stream": "other_stream", "schema": "rtmp"}],
+        }
+    )
+    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+
+    result = asyncio.run(service.get_status("stream_001"))
+
+    assert result.online is False
+    assert result.raw["data"][0]["stream"] == "other_stream"
+
+
+def test_get_stream_status_rejects_malformed_media_list(monkeypatch) -> None:
+    service = StreamStatusService()
+    get_media_list = AsyncMock(return_value={"code": 0, "data": {"unexpected": True}})
+    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+
+    with pytest.raises(ZlmResponseError, match="data"):
         asyncio.run(service.get_status("stream_001"))
 
 

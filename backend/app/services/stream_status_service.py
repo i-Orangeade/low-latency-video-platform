@@ -2,6 +2,7 @@ from typing import Any
 
 from app.config import settings
 from app.schemas.stream import StreamStatus, StreamStatusResponse
+from app.services.zlm_errors import ZlmResponseError
 from app.services.zlm_client import zlm_client
 
 
@@ -20,7 +21,15 @@ class StreamStatusService:
                 raw=payload,
             )
 
-        media = media_list[0]
+        media = self._find_media(stream_id, media_list)
+        if not media:
+            return StreamStatusResponse(
+                stream_id=stream_id,
+                online=False,
+                app=app_name,
+                raw=payload,
+            )
+
         status = self._map_status(stream_id, app_name, media)
         return StreamStatusResponse(**status.model_dump(), raw=media)
 
@@ -61,8 +70,18 @@ class StreamStatusService:
     def _media_list(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         data = payload.get("data")
         if not isinstance(data, list):
-            return []
+            raise ZlmResponseError("ZLMediaKit getMediaList response field 'data' must be a list")
         return [item for item in data if isinstance(item, dict)]
+
+    def _find_media(
+        self,
+        stream_id: str,
+        media_list: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        for media in media_list:
+            if media.get("stream") == stream_id:
+                return media
+        return media_list[0] if media_list and media_list[0].get("stream") is None else None
 
 
 stream_status_service = StreamStatusService()

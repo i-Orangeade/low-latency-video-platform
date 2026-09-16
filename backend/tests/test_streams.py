@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 from app.schemas.stream import StreamStatusResponse
 from app.services.stream_status_service import stream_status_service
+from app.services.zlm_errors import ZlmConnectionError
 
 
 def test_play_url_returns_http_flv(client) -> None:
@@ -65,9 +66,20 @@ def test_status_maps_zlm_errors_to_502(client, monkeypatch) -> None:
     monkeypatch.setattr(
         stream_status_service,
         "get_status",
-        AsyncMock(side_effect=RuntimeError("zlm unavailable")),
+        AsyncMock(side_effect=ZlmConnectionError("zlm unavailable")),
     )
 
     response = client.get("/api/streams/stream_001/status")
     assert response.status_code == 502
     assert "failed to query ZLMediaKit" in response.json()["detail"]
+
+
+def test_status_does_not_hide_internal_errors(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        stream_status_service,
+        "get_status",
+        AsyncMock(side_effect=ValueError("programming bug")),
+    )
+
+    response = client.get("/api/streams/stream_001/status")
+    assert response.status_code == 500

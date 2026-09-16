@@ -2,6 +2,7 @@ import pytest
 
 from app.schemas.stream import StreamStatus
 from app.services.stream_status_service import stream_status_service
+from app.services.zlm_errors import ZlmConnectionError
 
 
 def test_video_source_crud(client) -> None:
@@ -129,7 +130,7 @@ def test_video_source_status_summary_maps_zlm_errors_to_502(client, monkeypatch)
     )
 
     async def fake_get_statuses(stream_ids: list[str]):
-        raise RuntimeError("zlm unavailable")
+        raise ZlmConnectionError("zlm unavailable")
 
     monkeypatch.setattr(stream_status_service, "get_statuses", fake_get_statuses)
 
@@ -137,6 +138,22 @@ def test_video_source_status_summary_maps_zlm_errors_to_502(client, monkeypatch)
 
     assert response.status_code == 502
     assert "failed to query ZLMediaKit" in response.json()["detail"]
+
+
+def test_video_source_status_summary_does_not_hide_internal_errors(client, monkeypatch) -> None:
+    client.post(
+        "/api/video-sources",
+        json={"name": "Source 1", "stream_id": "stream_001"},
+    )
+
+    async def fake_get_statuses(stream_ids: list[str]):
+        raise ValueError("programming bug")
+
+    monkeypatch.setattr(stream_status_service, "get_statuses", fake_get_statuses)
+
+    response = client.get("/api/video-sources/status")
+
+    assert response.status_code == 500
 
 
 def test_create_video_source_strips_text_fields(client) -> None:
