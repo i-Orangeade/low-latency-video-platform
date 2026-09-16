@@ -1,15 +1,19 @@
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from app.services.stream_status_service import StreamStatusService
 from app.services.zlm_errors import ZlmApiError, ZlmResponseError
-from app.services.zlm_client import ZlmClient, zlm_client
+from app.services.zlm_client import ZlmClient
 
 
-def test_get_stream_status_online_maps_media_list(monkeypatch) -> None:
-    service = StreamStatusService()
+def _zlm_client(**methods):
+    return SimpleNamespace(**methods)
+
+
+def test_get_stream_status_online_maps_media_list() -> None:
     get_media_list = AsyncMock(
         return_value={
             "code": 0,
@@ -26,7 +30,7 @@ def test_get_stream_status_online_maps_media_list(monkeypatch) -> None:
             ],
         }
     )
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_status("stream_001"))
 
@@ -39,10 +43,9 @@ def test_get_stream_status_online_maps_media_list(monkeypatch) -> None:
     get_media_list.assert_awaited_once_with("live", "stream_001")
 
 
-def test_get_stream_status_offline_when_media_list_empty(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_offline_when_media_list_empty() -> None:
     get_media_list = AsyncMock(return_value={"code": 0, "data": []})
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_status("stream_001"))
 
@@ -51,24 +54,22 @@ def test_get_stream_status_offline_when_media_list_empty(monkeypatch) -> None:
     assert result.raw == {"code": 0, "data": []}
 
 
-def test_get_stream_status_raises_when_zlm_returns_error_code(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_raises_when_zlm_returns_error_code() -> None:
     get_media_list = AsyncMock(side_effect=ZlmApiError(-1, "unauthorized"))
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     with pytest.raises(ZlmApiError, match="unauthorized"):
         asyncio.run(service.get_status("stream_001"))
 
 
-def test_get_stream_status_ignores_mismatched_stream(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_ignores_mismatched_stream() -> None:
     get_media_list = AsyncMock(
         return_value={
             "code": 0,
             "data": [{"app": "live", "stream": "other_stream", "schema": "rtmp"}],
         }
     )
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_status("stream_001"))
 
@@ -76,8 +77,7 @@ def test_get_stream_status_ignores_mismatched_stream(monkeypatch) -> None:
     assert result.raw["data"][0]["stream"] == "other_stream"
 
 
-def test_get_stream_status_finds_target_stream_after_other_records(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_finds_target_stream_after_other_records() -> None:
     get_media_list = AsyncMock(
         return_value={
             "code": 0,
@@ -92,7 +92,7 @@ def test_get_stream_status_finds_target_stream_after_other_records(monkeypatch) 
             ],
         }
     )
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_status("stream_001"))
 
@@ -101,15 +101,14 @@ def test_get_stream_status_finds_target_stream_after_other_records(monkeypatch) 
     assert result.raw["stream"] == "stream_001"
 
 
-def test_get_stream_status_does_not_use_record_without_stream_id(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_does_not_use_record_without_stream_id() -> None:
     get_media_list = AsyncMock(
         return_value={
             "code": 0,
             "data": [{"app": "live", "schema": "rtmp", "readerCount": 9}],
         }
     )
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_status("stream_001"))
 
@@ -117,19 +116,17 @@ def test_get_stream_status_does_not_use_record_without_stream_id(monkeypatch) ->
     assert result.raw["data"][0]["readerCount"] == 9
 
 
-def test_get_stream_status_rejects_malformed_media_list(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_status_rejects_malformed_media_list() -> None:
     get_media_list = AsyncMock(return_value={"code": 0, "data": {"unexpected": True}})
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     with pytest.raises(ZlmResponseError, match="data"):
         asyncio.run(service.get_status("stream_001"))
 
 
-def test_get_stream_statuses_returns_empty_without_querying_zlm(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_statuses_returns_empty_without_querying_zlm() -> None:
     get_media_list = AsyncMock()
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_statuses([]))
 
@@ -137,8 +134,7 @@ def test_get_stream_statuses_returns_empty_without_querying_zlm(monkeypatch) -> 
     get_media_list.assert_not_awaited()
 
 
-def test_get_stream_statuses_maps_multiple_video_sources(monkeypatch) -> None:
-    service = StreamStatusService()
+def test_get_stream_statuses_maps_multiple_video_sources() -> None:
     get_media_list = AsyncMock(
         return_value={
             "code": 0,
@@ -153,7 +149,7 @@ def test_get_stream_statuses_maps_multiple_video_sources(monkeypatch) -> None:
             ],
         }
     )
-    monkeypatch.setattr(zlm_client, "get_media_list", get_media_list)
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
 
     result = asyncio.run(service.get_statuses(["stream_001", "stream_002"]))
 

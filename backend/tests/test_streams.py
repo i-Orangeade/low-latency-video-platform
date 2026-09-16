@@ -1,15 +1,20 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from app.schemas.stream import StreamStatusResponse
-from app.services.stream_status_service import stream_status_service
 import pytest
 
+from app.dependencies import get_stream_status_service
+from app.schemas.stream import StreamStatusResponse
 from app.services.zlm_errors import (
     ZlmApiError,
     ZlmConnectionError,
     ZlmHttpError,
     ZlmResponseError,
 )
+
+
+def _stream_status_service(**methods):
+    return SimpleNamespace(**methods)
 
 
 def test_play_url_returns_http_flv(client) -> None:
@@ -21,11 +26,9 @@ def test_play_url_returns_http_flv(client) -> None:
     assert payload["url"] == "http://127.0.0.1:8080/live/stream_001.live.flv"
 
 
-def test_status_online(client, monkeypatch) -> None:
-    monkeypatch.setattr(
-        stream_status_service,
-        "get_status",
-        AsyncMock(
+def test_status_online(client) -> None:
+    stream_status_service = _stream_status_service(
+        get_status=AsyncMock(
             return_value=StreamStatusResponse(
                 stream_id="stream_001",
                 online=True,
@@ -39,6 +42,7 @@ def test_status_online(client, monkeypatch) -> None:
             )
         ),
     )
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/streams/stream_001/status")
     assert response.status_code == 200
@@ -47,11 +51,9 @@ def test_status_online(client, monkeypatch) -> None:
     assert payload["app"] == "live"
 
 
-def test_status_offline(client, monkeypatch) -> None:
-    monkeypatch.setattr(
-        stream_status_service,
-        "get_status",
-        AsyncMock(
+def test_status_offline(client) -> None:
+    stream_status_service = _stream_status_service(
+        get_status=AsyncMock(
             return_value=StreamStatusResponse(
                 stream_id="stream_001",
                 online=False,
@@ -63,6 +65,7 @@ def test_status_offline(client, monkeypatch) -> None:
             )
         ),
     )
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/streams/stream_001/status")
     assert response.status_code == 200
@@ -80,16 +83,12 @@ def test_status_offline(client, monkeypatch) -> None:
 )
 def test_status_maps_zlm_errors_to_precise_api_errors(
     client,
-    monkeypatch,
     error,
     expected_status,
     expected_code,
 ) -> None:
-    monkeypatch.setattr(
-        stream_status_service,
-        "get_status",
-        AsyncMock(side_effect=error),
-    )
+    stream_status_service = _stream_status_service(get_status=AsyncMock(side_effect=error))
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/streams/stream_001/status")
     assert response.status_code == expected_status
@@ -97,13 +96,10 @@ def test_status_maps_zlm_errors_to_precise_api_errors(
     assert response.json()["detail"]["reason"] == str(error)
 
 
-def test_status_api_error_includes_zlm_code(client, monkeypatch) -> None:
+def test_status_api_error_includes_zlm_code(client) -> None:
     error = ZlmApiError(-401, "bad secret")
-    monkeypatch.setattr(
-        stream_status_service,
-        "get_status",
-        AsyncMock(side_effect=error),
-    )
+    stream_status_service = _stream_status_service(get_status=AsyncMock(side_effect=error))
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/streams/stream_001/status")
 
@@ -111,12 +107,11 @@ def test_status_api_error_includes_zlm_code(client, monkeypatch) -> None:
     assert response.json()["detail"]["zlm_code"] == -401
 
 
-def test_status_does_not_hide_internal_errors(client, monkeypatch) -> None:
-    monkeypatch.setattr(
-        stream_status_service,
-        "get_status",
-        AsyncMock(side_effect=ValueError("programming bug")),
+def test_status_does_not_hide_internal_errors(client) -> None:
+    stream_status_service = _stream_status_service(
+        get_status=AsyncMock(side_effect=ValueError("programming bug"))
     )
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/streams/stream_001/status")
     assert response.status_code == 500

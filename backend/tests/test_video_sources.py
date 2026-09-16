@@ -1,8 +1,14 @@
+from types import SimpleNamespace
+
 import pytest
 
+from app.dependencies import get_stream_status_service
 from app.schemas.stream import StreamStatus
-from app.services.stream_status_service import stream_status_service
 from app.services.zlm_errors import ZlmConnectionError
+
+
+def _stream_status_service(**methods):
+    return SimpleNamespace(**methods)
 
 
 def test_video_source_crud(client) -> None:
@@ -52,11 +58,12 @@ def test_update_missing_video_source_returns_404(client) -> None:
     assert response.status_code == 404
 
 
-def test_video_source_status_summary_returns_empty_without_zlm_call(client, monkeypatch) -> None:
+def test_video_source_status_summary_returns_empty_without_zlm_call(client) -> None:
     async def fail_if_called(stream_ids: list[str]):
         raise AssertionError("ZLMediaKit should not be queried when there are no video sources")
 
-    monkeypatch.setattr(stream_status_service, "get_statuses", fail_if_called)
+    stream_status_service = _stream_status_service(get_statuses=fail_if_called)
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/video-sources/status")
 
@@ -69,7 +76,7 @@ def test_video_source_status_summary_returns_empty_without_zlm_call(client, monk
     }
 
 
-def test_video_source_status_summary(client, monkeypatch) -> None:
+def test_video_source_status_summary(client) -> None:
     created_online = client.post(
         "/api/video-sources",
         json={"name": "Source 1", "stream_id": "stream_001"},
@@ -86,7 +93,8 @@ def test_video_source_status_summary(client, monkeypatch) -> None:
             "stream_002": StreamStatus(stream_id="stream_002", online=False, app="live"),
         }
 
-    monkeypatch.setattr(stream_status_service, "get_statuses", fake_get_statuses)
+    stream_status_service = _stream_status_service(get_statuses=fake_get_statuses)
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/video-sources/status")
 
@@ -123,7 +131,7 @@ def test_video_source_status_summary(client, monkeypatch) -> None:
     ]
 
 
-def test_video_source_status_summary_maps_zlm_connection_errors_to_503(client, monkeypatch) -> None:
+def test_video_source_status_summary_maps_zlm_connection_errors_to_503(client) -> None:
     client.post(
         "/api/video-sources",
         json={"name": "Source 1", "stream_id": "stream_001"},
@@ -132,7 +140,8 @@ def test_video_source_status_summary_maps_zlm_connection_errors_to_503(client, m
     async def fake_get_statuses(stream_ids: list[str]):
         raise ZlmConnectionError("zlm unavailable")
 
-    monkeypatch.setattr(stream_status_service, "get_statuses", fake_get_statuses)
+    stream_status_service = _stream_status_service(get_statuses=fake_get_statuses)
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/video-sources/status")
 
@@ -140,7 +149,7 @@ def test_video_source_status_summary_maps_zlm_connection_errors_to_503(client, m
     assert response.json()["detail"]["code"] == "zlm_unavailable"
 
 
-def test_video_source_status_summary_does_not_hide_internal_errors(client, monkeypatch) -> None:
+def test_video_source_status_summary_does_not_hide_internal_errors(client) -> None:
     client.post(
         "/api/video-sources",
         json={"name": "Source 1", "stream_id": "stream_001"},
@@ -149,7 +158,8 @@ def test_video_source_status_summary_does_not_hide_internal_errors(client, monke
     async def fake_get_statuses(stream_ids: list[str]):
         raise ValueError("programming bug")
 
-    monkeypatch.setattr(stream_status_service, "get_statuses", fake_get_statuses)
+    stream_status_service = _stream_status_service(get_statuses=fake_get_statuses)
+    client.app.dependency_overrides[get_stream_status_service] = lambda: stream_status_service
 
     response = client.get("/api/video-sources/status")
 

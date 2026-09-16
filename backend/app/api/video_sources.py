@@ -1,24 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, status
 
 from app.api.error_handling import zlm_http_exception
-from app.database import get_db
+from app.dependencies import DbSession, StreamStatusServiceDep
 from app.models.video_source import VideoSource
 from app.schemas.stream import VideoSourceStatusItem, VideoSourceStatusSummary
 from app.schemas.video_source import VideoSourceCreate, VideoSourceRead, VideoSourceUpdate
-from app.services.stream_status_service import stream_status_service
 from app.services.zlm_errors import ZlmError
 
 router = APIRouter(prefix="/video-sources", tags=["video-sources"])
 
 
 @router.get("", response_model=list[VideoSourceRead])
-def list_video_sources(db: Session = Depends(get_db)) -> list[VideoSource]:
+def list_video_sources(db: DbSession) -> list[VideoSource]:
     return db.query(VideoSource).order_by(VideoSource.id.desc()).all()
 
 
 @router.get("/status", response_model=VideoSourceStatusSummary)
-async def get_video_source_status_summary(db: Session = Depends(get_db)) -> VideoSourceStatusSummary:
+async def get_video_source_status_summary(
+    db: DbSession,
+    stream_status_service: StreamStatusServiceDep,
+) -> VideoSourceStatusSummary:
     video_sources = db.query(VideoSource).order_by(VideoSource.id.desc()).all()
     if not video_sources:
         return VideoSourceStatusSummary(total=0, online=0, offline=0, video_sources=[])
@@ -49,7 +50,7 @@ async def get_video_source_status_summary(db: Session = Depends(get_db)) -> Vide
 
 
 @router.post("", response_model=VideoSourceRead, status_code=status.HTTP_201_CREATED)
-def create_video_source(source_in: VideoSourceCreate, db: Session = Depends(get_db)) -> VideoSource:
+def create_video_source(source_in: VideoSourceCreate, db: DbSession) -> VideoSource:
     exists = db.query(VideoSource).filter(VideoSource.stream_id == source_in.stream_id).first()
     if exists:
         raise HTTPException(status_code=409, detail="stream_id already exists")
@@ -62,7 +63,7 @@ def create_video_source(source_in: VideoSourceCreate, db: Session = Depends(get_
 
 
 @router.get("/{source_id}", response_model=VideoSourceRead)
-def get_video_source(source_id: int, db: Session = Depends(get_db)) -> VideoSource:
+def get_video_source(source_id: int, db: DbSession) -> VideoSource:
     source = db.get(VideoSource, source_id)
     if not source:
         raise HTTPException(status_code=404, detail="video source not found")
@@ -73,7 +74,7 @@ def get_video_source(source_id: int, db: Session = Depends(get_db)) -> VideoSour
 def update_video_source(
     source_id: int,
     source_in: VideoSourceUpdate,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> VideoSource:
     source = db.get(VideoSource, source_id)
     if not source:
@@ -98,7 +99,7 @@ def update_video_source(
 
 
 @router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_video_source(source_id: int, db: Session = Depends(get_db)) -> None:
+def delete_video_source(source_id: int, db: DbSession) -> None:
     source = db.get(VideoSource, source_id)
     if not source:
         raise HTTPException(status_code=404, detail="video source not found")

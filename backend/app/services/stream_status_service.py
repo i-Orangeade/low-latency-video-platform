@@ -3,15 +3,18 @@ from typing import Any
 from app.config import settings
 from app.schemas.stream import StreamStatus, StreamStatusResponse
 from app.services.zlm_errors import ZlmResponseError
-from app.services.zlm_client import zlm_client
+from app.services.zlm_client import ZlmClient, zlm_client
 
 
 class StreamStatusService:
     """Maps ZLMediaKit media records into platform stream-status responses."""
 
+    def __init__(self, client: ZlmClient | None = None) -> None:
+        self._client = client or zlm_client
+
     async def get_status(self, stream_id: str, app: str | None = None) -> StreamStatusResponse:
         app_name = app or settings.default_app
-        payload = await zlm_client.get_media_list(app_name, stream_id)
+        payload = await self._client.get_media_list(app_name, stream_id)
         media_list = self._media_list(payload)
         if not media_list:
             return StreamStatusResponse(
@@ -38,7 +41,7 @@ class StreamStatusService:
             return {}
 
         app_name = app or settings.default_app
-        payload = await zlm_client.get_media_list(app_name)
+        payload = await self._client.get_media_list(app_name)
         media_by_stream = {
             str(media.get("stream")): media
             for media in self._media_list(payload)
