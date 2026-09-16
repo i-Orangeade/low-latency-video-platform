@@ -2,7 +2,14 @@ from unittest.mock import AsyncMock
 
 from app.schemas.stream import StreamStatusResponse
 from app.services.stream_status_service import stream_status_service
-from app.services.zlm_errors import ZlmConnectionError
+import pytest
+
+from app.services.zlm_errors import (
+    ZlmApiError,
+    ZlmConnectionError,
+    ZlmHttpError,
+    ZlmResponseError,
+)
 
 
 def test_play_url_returns_http_flv(client) -> None:
@@ -62,16 +69,46 @@ def test_status_offline(client, monkeypatch) -> None:
     assert response.json()["online"] is False
 
 
-def test_status_maps_zlm_errors_to_502(client, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_code"),
+    [
+        (ZlmConnectionError("zlm unavailable"), 503, "zlm_unavailable"),
+        (ZlmHttpError(500, "upstream failed"), 502, "zlm_http_error"),
+        (ZlmApiError(-1, "bad secret"), 502, "zlm_api_error"),
+        (ZlmResponseError("invalid payload"), 502, "zlm_response_error"),
+    ],
+)
+def test_status_maps_zlm_errors_to_precise_api_errors(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+    expected_code,
+) -> None:
     monkeypatch.setattr(
         stream_status_service,
         "get_status",
-        AsyncMock(side_effect=ZlmConnectionError("zlm unavailable")),
+        AsyncMock(side_effect=error),
     )
 
     response = client.get("/api/streams/stream_001/status")
+    assert response.status_code == expected_status
+    assert response.json()["detail"]["code"] == expected_code
+    assert response.json()["detail"]["reason"] == str(error)
+
+
+def test_status_api_error_includes_zlm_code(client, monkeypatch) -> None:
+    error = ZlmApiError(-401, "bad secret")
+    monkeypatch.setattr(
+        stream_status_service,
+        "get_status",
+        AsyncMock(side_effect=error),
+    )
+
+    response = client.get("/api/streams/stream_001/status")
+
     assert response.status_code == 502
-    assert "failed to query ZLMediaKit" in response.json()["detail"]
+    assert response.json()["detail"]["zlm_code"] == -401
 
 
 def test_status_does_not_hide_internal_errors(client, monkeypatch) -> None:

@@ -123,7 +123,7 @@ def test_video_source_status_summary(client, monkeypatch) -> None:
     ]
 
 
-def test_video_source_status_summary_maps_zlm_errors_to_502(client, monkeypatch) -> None:
+def test_video_source_status_summary_maps_zlm_connection_errors_to_503(client, monkeypatch) -> None:
     client.post(
         "/api/video-sources",
         json={"name": "Source 1", "stream_id": "stream_001"},
@@ -136,8 +136,8 @@ def test_video_source_status_summary_maps_zlm_errors_to_502(client, monkeypatch)
 
     response = client.get("/api/video-sources/status")
 
-    assert response.status_code == 502
-    assert "failed to query ZLMediaKit" in response.json()["detail"]
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "zlm_unavailable"
 
 
 def test_video_source_status_summary_does_not_hide_internal_errors(client, monkeypatch) -> None:
