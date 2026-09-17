@@ -45,6 +45,11 @@ services:
       context: ./backend
     container_name: llvp-backend
     restart: unless-stopped
+    depends_on:
+      # 后端启动时会执行 Alembic 迁移并连接 ZLM 查询状态；
+      # 等 ZLM API 健康后再启动，可以减少端到端验证初期的 503 抖动。
+      zlm:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
