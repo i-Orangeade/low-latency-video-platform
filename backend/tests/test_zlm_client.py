@@ -79,14 +79,33 @@ def test_zlm_client_maps_connection_errors() -> None:
 def test_zlm_client_maps_http_errors() -> None:
     FakeAsyncClient.response = FakeResponse({"code": 0}, status_code=500)
 
-    with pytest.raises(ZlmHttpError, match="HTTP 500"):
+    with pytest.raises(ZlmHttpError, match="HTTP 500") as error:
+        asyncio.run(ZlmClient().get_media_list("live"))
+
+    assert error.value.status_code == 500
+
+
+def test_zlm_client_maps_timeout_to_connection_error() -> None:
+    request = httpx.Request("GET", "http://zlm.local/index/api/getMediaList")
+    FakeAsyncClient.request_error = httpx.ReadTimeout("request timed out", request=request)
+
+    with pytest.raises(ZlmConnectionError, match="request timed out"):
         asyncio.run(ZlmClient().get_media_list("live"))
 
 
 def test_zlm_client_maps_api_errors() -> None:
     FakeAsyncClient.response = FakeResponse({"code": -1, "msg": "bad secret"})
 
-    with pytest.raises(ZlmApiError, match="bad secret"):
+    with pytest.raises(ZlmApiError, match="bad secret") as error:
+        asyncio.run(ZlmClient().get_media_list("live"))
+
+    assert error.value.code == -1
+
+
+def test_zlm_client_uses_fallback_message_when_api_error_has_no_message() -> None:
+    FakeAsyncClient.response = FakeResponse({"code": -1})
+
+    with pytest.raises(ZlmApiError, match="getMediaList"):
         asyncio.run(ZlmClient().get_media_list("live"))
 
 
