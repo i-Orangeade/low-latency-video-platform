@@ -16,6 +16,13 @@ cp .env.example .env
 Set `LLVP_ZLM_SECRET`. Compose injects this value into the official ZLMediaKit
 config template and into the FastAPI control plane.
 
+The backend stores control-plane data in SQLite. Alembic migrations run during
+application startup, and can also be applied manually:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
 ## Start Services
 
 ```bash

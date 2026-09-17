@@ -98,6 +98,15 @@ python3.11 -m venv .venv
 .venv/bin/python -m pytest -q
 ```
 
+数据库使用 SQLite 保存控制面数据，表结构由 Alembic migration 管理：
+
+```bash
+cd backend
+.venv/bin/alembic upgrade head
+```
+
+应用启动时也会自动执行 `alembic upgrade head`。学习阶段如果本地数据不需要保留，可以删除 SQLite 文件后重新启动；后续新增字段或表必须新增 migration，不要只依赖 `create_all()`。
+
 前端：
 
 ```bash

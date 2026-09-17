@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.services.stream_status_service import StreamStatusService
+from app.services.video_source_service import VideoSourceService
 from app.services.zlm_client import ZlmClient, zlm_client
 
 
@@ -23,3 +24,13 @@ def get_stream_status_service(zlm_client: ZlmClientDep) -> StreamStatusService:
 
 
 StreamStatusServiceDep = Annotated[StreamStatusService, Depends(get_stream_status_service)]
+
+
+def get_video_source_service(
+    db: DbSession,
+    stream_status_service: StreamStatusServiceDep,
+) -> VideoSourceService:
+    return VideoSourceService(db, stream_status_service)
+
+
+VideoSourceServiceDep = Annotated[VideoSourceService, Depends(get_video_source_service)]

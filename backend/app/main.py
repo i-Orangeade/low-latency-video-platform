@@ -6,12 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import streams, video_sources
 from app.config import settings
-from app.database import init_db
+from app.database import init_db, run_migrations
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
+    run_migrations()
     yield
 
 

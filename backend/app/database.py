@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -32,30 +33,27 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    from app.models import video_source  # noqa: F401
-
     if engine is None:
         configure_engine()
     if is_sqlite:
         with engine.begin() as connection:
-            _migrate_legacy_device_table(connection)
             connection.execute(text("PRAGMA journal_mode=WAL"))
             connection.execute(text("PRAGMA synchronous=NORMAL"))
             connection.execute(text("PRAGMA busy_timeout=30000"))
-    Base.metadata.create_all(bind=engine)
 
 
-def _migrate_legacy_device_table(connection) -> None:
-    """Rename the old devices table once, preserving local registrations."""
-    old_table_exists = connection.execute(
-        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='devices'")
-    ).scalar()
-    new_table_exists = connection.execute(
-        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='video_sources'")
-    ).scalar()
+def run_migrations() -> None:
+    from alembic import command
+    from alembic.config import Config
 
-    if old_table_exists and not new_table_exists:
-        connection.execute(text("ALTER TABLE devices RENAME TO video_sources"))
+    if engine is None:
+        configure_engine()
+
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", settings.database_url)
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
 
 
 configure_engine()
