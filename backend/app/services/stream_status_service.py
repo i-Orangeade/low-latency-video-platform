@@ -75,6 +75,9 @@ class StreamStatusService:
 
     def _media_list(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         data = payload.get("data")
+        if data is None:
+            # ZLMediaKit omits data and returns only {"code": 0} when no stream exists.
+            return []
         if not isinstance(data, list):
             raise ZlmResponseError("ZLMediaKit getMediaList response field 'data' must be a list")
         return [item for item in data if isinstance(item, dict)]

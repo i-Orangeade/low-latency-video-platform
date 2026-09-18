@@ -54,6 +54,16 @@ def test_get_stream_status_offline_when_media_list_empty() -> None:
     assert result.raw == {"code": 0, "data": []}
 
 
+def test_get_stream_status_offline_when_zlm_omits_empty_data() -> None:
+    get_media_list = AsyncMock(return_value={"code": 0})
+    service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
+
+    result = asyncio.run(service.get_status("stream_001"))
+
+    assert result.online is False
+    assert result.raw == {"code": 0}
+
+
 def test_get_stream_status_raises_when_zlm_returns_error_code() -> None:
     get_media_list = AsyncMock(side_effect=ZlmApiError(-1, "unauthorized"))
     service = StreamStatusService(_zlm_client(get_media_list=get_media_list))
