@@ -1,8 +1,15 @@
+from math import ceil
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.video_source import VideoSource
 from app.schemas.stream import VideoSourceStatusItem, VideoSourceStatusSummary
-from app.schemas.video_source import VideoSourceCreate, VideoSourceUpdate
+from app.schemas.video_source import (
+    VideoSourceCreate,
+    VideoSourcePage,
+    VideoSourceUpdate,
+)
 from app.services.stream_status_service import StreamStatusService
 
 
@@ -21,11 +28,34 @@ class VideoSourceService:
         self._db = db
         self._stream_status_service = stream_status_service
 
-    def list(self) -> list[VideoSource]:
+    def list_page(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        query: str | None = None,
+        enabled: bool | None = None,
+    ) -> VideoSourcePage:
+        statement = self._filtered_query(query=query, enabled=enabled)
+        total = statement.count()
+        items = (
+            statement.order_by(VideoSource.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return VideoSourcePage(
+            items=items,
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=ceil(total / page_size) if total else 0,
+        )
+
+    def list_all(self) -> list[VideoSource]:
         return self._db.query(VideoSource).order_by(VideoSource.id.desc()).all()
 
     async def get_status_summary(self) -> VideoSourceStatusSummary:
-        video_sources = self.list()
+        video_sources = self.list_all()
         if not video_sources:
             return VideoSourceStatusSummary(total=0, online=0, offline=0, video_sources=[])
 
@@ -85,3 +115,17 @@ class VideoSourceService:
             query = query.filter(VideoSource.id != exclude_id)
         if query.first():
             raise DuplicateStreamIdError
+
+    def _filtered_query(self, query: str | None, enabled: bool | None):
+        statement = self._db.query(VideoSource)
+        if query and (term := query.strip()):
+            pattern = f"%{term}%"
+            statement = statement.filter(
+                or_(
+                    VideoSource.name.ilike(pattern),
+                    VideoSource.stream_id.ilike(pattern),
+                )
+            )
+        if enabled is not None:
+            statement = statement.filter(VideoSource.enabled == enabled)
+        return statement

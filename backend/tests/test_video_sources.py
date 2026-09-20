@@ -29,7 +29,10 @@ def test_video_source_crud(client) -> None:
 
     listed = client.get("/api/video-sources")
     assert listed.status_code == 200
-    assert any(item["stream_id"] == "stream_001" for item in listed.json())
+    assert any(
+        item["stream_id"] == "stream_001"
+        for item in listed.json()["items"]
+    )
 
     fetched = client.get(f"/api/video-sources/{source['id']}")
     assert fetched.status_code == 200
@@ -53,7 +56,74 @@ def test_video_source_crud(client) -> None:
 
     deleted = client.delete(f"/api/video-sources/{source['id']}")
     assert deleted.status_code == 204
-    assert client.get("/api/video-sources").json() == []
+    assert client.get("/api/video-sources").json()["items"] == []
+
+
+def test_list_video_sources_returns_paginated_response(client) -> None:
+    for index in range(3):
+        response = client.post(
+            "/api/video-sources",
+            json={"name": f"Source {index}", "stream_id": f"stream_{index}"},
+        )
+        assert response.status_code == 201
+
+    response = client.get("/api/video-sources?page=2&page_size=2")
+
+    assert response.status_code == 200
+    assert response.json()["page"] == 2
+    assert response.json()["page_size"] == 2
+    assert response.json()["total"] == 3
+    assert response.json()["total_pages"] == 2
+    assert [item["stream_id"] for item in response.json()["items"]] == ["stream_0"]
+
+
+def test_list_video_sources_searches_name_and_stream_id(client) -> None:
+    client.post(
+        "/api/video-sources",
+        json={"name": "Front Door Camera", "stream_id": "front_door"},
+    )
+    client.post(
+        "/api/video-sources",
+        json={"name": "Back Door Camera", "stream_id": "yard_camera"},
+    )
+
+    name_response = client.get("/api/video-sources?q=front")
+    stream_response = client.get("/api/video-sources?q=yard_camera")
+
+    assert [item["stream_id"] for item in name_response.json()["items"]] == ["front_door"]
+    assert [item["stream_id"] for item in stream_response.json()["items"]] == ["yard_camera"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "page=0",
+        "page_size=0",
+        "page_size=101",
+    ],
+)
+def test_list_video_sources_rejects_invalid_pagination(client, query) -> None:
+    response = client.get(f"/api/video-sources?{query}")
+
+    assert response.status_code == 422
+
+
+def test_list_video_sources_can_filter_enabled_state(client) -> None:
+    enabled = client.post(
+        "/api/video-sources",
+        json={"name": "Enabled", "stream_id": "enabled_001"},
+    ).json()
+    disabled = client.post(
+        "/api/video-sources",
+        json={"name": "Disabled", "stream_id": "disabled_001", "enabled": False},
+    ).json()
+
+    response = client.get("/api/video-sources?enabled=false")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["items"] == [disabled]
+    assert enabled not in response.json()["items"]
 
 
 def test_get_missing_video_source_returns_404(client) -> None:

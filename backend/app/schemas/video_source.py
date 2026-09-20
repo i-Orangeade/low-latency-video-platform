@@ -62,3 +62,11 @@ class VideoSourceRead(VideoSourceBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class VideoSourcePage(BaseModel):
+    items: list[VideoSourceRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int

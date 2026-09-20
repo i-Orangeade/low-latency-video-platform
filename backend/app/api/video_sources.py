@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.error_handling import zlm_http_exception
 from app.dependencies import VideoSourceServiceDep
 from app.models.video_source import VideoSource
 from app.schemas.stream import VideoSourceStatusSummary
-from app.schemas.video_source import VideoSourceCreate, VideoSourceRead, VideoSourceUpdate
+from app.schemas.video_source import (
+    VideoSourceCreate,
+    VideoSourcePage,
+    VideoSourceRead,
+    VideoSourceUpdate,
+)
 from app.services.video_source_service import (
     DuplicateStreamIdError,
     VideoSourceNotFoundError,
@@ -14,9 +19,20 @@ from app.services.zlm_errors import ZlmError
 router = APIRouter(prefix="/video-sources", tags=["video-sources"])
 
 
-@router.get("", response_model=list[VideoSourceRead])
-def list_video_sources(video_source_service: VideoSourceServiceDep) -> list[VideoSource]:
-    return video_source_service.list()
+@router.get("", response_model=VideoSourcePage)
+def list_video_sources(
+    video_source_service: VideoSourceServiceDep,
+    q: str | None = Query(default=None, max_length=100),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    enabled: bool | None = None,
+) -> VideoSourcePage:
+    return video_source_service.list_page(
+        page=page,
+        page_size=page_size,
+        query=q,
+        enabled=enabled,
+    )
 
 
 @router.get("/status", response_model=VideoSourceStatusSummary)
