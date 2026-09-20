@@ -21,6 +21,11 @@ def test_video_source_crud(client) -> None:
     assert source["id"]
     assert source["name"] == "Source 1"
     assert source["stream_id"] == "stream_001"
+    assert source["enabled"] is True
+    assert source["created_at"]
+    assert source["updated_at"]
+    created_at = source["created_at"]
+    updated_at = source["updated_at"]
 
     listed = client.get("/api/video-sources")
     assert listed.status_code == 200
@@ -38,10 +43,13 @@ def test_video_source_crud(client) -> None:
 
     updated = client.put(
         f"/api/video-sources/{source['id']}",
-        json={"name": "Source 1A"},
+        json={"name": "Source 1A", "enabled": False},
     )
     assert updated.status_code == 200
     assert updated.json()["name"] == "Source 1A"
+    assert updated.json()["enabled"] is False
+    assert updated.json()["created_at"] == created_at
+    assert updated.json()["updated_at"] != updated_at
 
     deleted = client.delete(f"/api/video-sources/{source['id']}")
     assert deleted.status_code == 204

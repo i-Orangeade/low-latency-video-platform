@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -22,6 +23,7 @@ def validate_stream_id(value: str | None) -> str | None:
 class VideoSourceBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     stream_id: str = Field(min_length=1, max_length=100)
+    enabled: bool = True
 
     @field_validator("name", "stream_id", mode="before")
     @classmethod
@@ -41,6 +43,7 @@ class VideoSourceCreate(VideoSourceBase):
 class VideoSourceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     stream_id: str | None = Field(default=None, min_length=1, max_length=100)
+    enabled: bool | None = None
 
     @field_validator("name", "stream_id", mode="before")
     @classmethod
@@ -57,3 +60,5 @@ class VideoSourceRead(VideoSourceBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    created_at: datetime
+    updated_at: datetime
