@@ -45,9 +45,20 @@ cp .env.example .env
 - RTMP 推流：`rtmp://127.0.0.1/live/stream_001`
 - HTTP-FLV：`http://127.0.0.1:8080/live/stream_001.live.flv`
 
-## 视频源登记
+## 视频源管理
 
-视频源表只有 `id`、`name`、`stream_id`。登记不是推流门禁，只是演示管理。也可以用 API：
+视频源控制面包含 `id`、`name`、`stream_id`、`enabled`、`created_at` 和
+`updated_at`。前端「视频源管理」页面支持新增、编辑、删除、启停切换、按名称或
+`stream_id` 搜索，以及分页浏览。登记不是推流门禁，只是控制面管理。
+
+列表 API 支持以下查询参数：
+
+```text
+GET /api/video-sources?q=front&page=1&page_size=20&enabled=true
+```
+
+返回结果包含当前页 `items`、`total` 和 `total_pages` 等分页信息。也可以直接用 API
+创建视频源：
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/video-sources \
