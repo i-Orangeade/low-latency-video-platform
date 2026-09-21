@@ -43,6 +43,9 @@ services:
   backend:
     build:
       context: ./backend
+      # Docker bridge 网络的 DNS 在部分主机上无法解析 PyPI；
+      # 使用宿主机网络仅用于构建阶段下载 Python 依赖。
+      network: host
     container_name: llvp-backend
     restart: unless-stopped
     depends_on:
@@ -79,6 +82,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      # 使用宿主机网络仅用于构建阶段下载 npm 依赖。
+      network: host
     container_name: llvp-frontend
     restart: unless-stopped
     ports:
