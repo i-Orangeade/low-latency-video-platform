@@ -3,6 +3,7 @@ import type { StreamStatus } from "../api/stream";
 
 defineProps<{
   status: StreamStatus | null;
+  enabled?: boolean;
 }>();
 </script>
 
@@ -13,6 +14,12 @@ defineProps<{
       在线状态：
       <span :class="status?.online ? 'status-online' : 'status-offline'">
         {{ status?.online ? "在线" : "离线" }}
+      </span>
+    </p>
+    <p v-if="enabled !== undefined">
+      管理状态：
+      <span :class="enabled ? 'status-online' : 'status-offline'">
+        {{ enabled ? "已启用" : "已停用" }}
       </span>
     </p>
     <p>应用名：{{ status?.app ?? "-" }}</p>

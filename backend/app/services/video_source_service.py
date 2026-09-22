@@ -91,11 +91,36 @@ class VideoSourceService:
             raise VideoSourceNotFoundError
         return source
 
+    def get_by_reference(self, source_ref: str) -> VideoSource:
+        """Resolve either a database id or a registered stream_id."""
+        if source_ref.isdigit():
+            source = self._db.get(VideoSource, int(source_ref))
+            if source:
+                return source
+
+        source = (
+            self._db.query(VideoSource)
+            .filter(VideoSource.stream_id == source_ref)
+            .first()
+        )
+        if not source:
+            raise VideoSourceNotFoundError
+        return source
+
     def update(self, source_id: int, source_in: VideoSourceUpdate) -> VideoSource:
-        source = self.get(source_id)
+        return self._update(self.get(source_id), source_in)
+
+    def update_by_reference(
+        self,
+        source_ref: str,
+        source_in: VideoSourceUpdate,
+    ) -> VideoSource:
+        return self._update(self.get_by_reference(source_ref), source_in)
+
+    def _update(self, source: VideoSource, source_in: VideoSourceUpdate) -> VideoSource:
         updates = source_in.model_dump(exclude_unset=True)
         if "stream_id" in updates:
-            self._ensure_stream_id_available(updates["stream_id"], exclude_id=source_id)
+            self._ensure_stream_id_available(updates["stream_id"], exclude_id=source.id)
 
         for key, value in updates.items():
             setattr(source, key, value)
@@ -105,7 +130,12 @@ class VideoSourceService:
         return source
 
     def delete(self, source_id: int) -> None:
-        source = self.get(source_id)
+        self._delete(self.get(source_id))
+
+    def delete_by_reference(self, source_ref: str) -> None:
+        self._delete(self.get_by_reference(source_ref))
+
+    def _delete(self, source: VideoSource) -> None:
         self._db.delete(source)
         self._db.commit()
 

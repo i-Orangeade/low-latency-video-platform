@@ -201,7 +201,7 @@ onMounted(() => void refresh(1));
             class="input"
             required
             maxlength="100"
-            pattern="[A-Za-z0-9_-]+"
+            pattern="[A-Za-z0-9_\\-]+"
             placeholder="例如：front_door"
           >
         </label>

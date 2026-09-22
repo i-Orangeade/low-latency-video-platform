@@ -56,25 +56,25 @@ def create_video_source(
         raise HTTPException(status_code=409, detail="stream_id already exists") from exc
 
 
-@router.get("/{source_id}", response_model=VideoSourceRead)
+@router.get("/{source_ref}", response_model=VideoSourceRead)
 def get_video_source(
-    source_id: int,
+    source_ref: str,
     video_source_service: VideoSourceServiceDep,
 ) -> VideoSource:
     try:
-        return video_source_service.get(source_id)
+        return video_source_service.get_by_reference(source_ref)
     except VideoSourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail="video source not found") from exc
 
 
-@router.put("/{source_id}", response_model=VideoSourceRead)
+@router.put("/{source_ref}", response_model=VideoSourceRead)
 def update_video_source(
-    source_id: int,
+    source_ref: str,
     source_in: VideoSourceUpdate,
     video_source_service: VideoSourceServiceDep,
 ) -> VideoSource:
     try:
-        return video_source_service.update(source_id, source_in)
+        return video_source_service.update_by_reference(source_ref, source_in)
     except VideoSourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail="video source not found") from exc
     except DuplicateStreamIdError as exc:
@@ -83,10 +83,10 @@ def update_video_source(
 
 @router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_video_source(
-    source_id: int,
+    source_id: str,
     video_source_service: VideoSourceServiceDep,
 ) -> None:
     try:
-        video_source_service.delete(source_id)
+        video_source_service.delete_by_reference(source_id)
     except VideoSourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail="video source not found") from exc

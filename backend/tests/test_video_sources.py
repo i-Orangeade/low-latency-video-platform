@@ -136,6 +136,27 @@ def test_update_missing_video_source_returns_404(client) -> None:
     assert response.status_code == 404
 
 
+def test_video_source_crud_accepts_stream_id_reference(client) -> None:
+    created = client.post(
+        "/api/video-sources",
+        json={"name": "Source 1", "stream_id": "api_test_001"},
+    ).json()
+
+    fetched = client.get("/api/video-sources/api_test_001")
+    assert fetched.status_code == 200
+    assert fetched.json()["id"] == created["id"]
+
+    updated = client.put(
+        "/api/video-sources/api_test_001",
+        json={"enabled": False},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["enabled"] is False
+
+    deleted = client.delete("/api/video-sources/api_test_001")
+    assert deleted.status_code == 204
+
+
 def test_video_source_status_summary_returns_empty_without_zlm_call(client) -> None:
     async def fail_if_called(stream_ids: list[str]):
         raise AssertionError("ZLMediaKit should not be queried when there are no video sources")
