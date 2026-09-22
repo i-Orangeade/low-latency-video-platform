@@ -7,6 +7,9 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 type PlayerState = "idle" | "connecting" | "playing" | "buffering" | "error" | "ended";
 
+const RECONNECT_DELAY_MS = 3000;
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 const props = defineProps<{
   url: string;
 }>();
@@ -16,6 +19,8 @@ const playerState = ref<PlayerState>("idle");
 const errorMessage = ref("");
 let player: mpegts.Player | null = null;
 let videoEventCleanup: (() => void) | null = null;
+let reconnectTimer: number | undefined;
+let reconnectAttempt = 0;
 // 快速切换地址时，旧异步任务可能晚于新任务返回。
 // 每次加载递增 generation，旧任务发现代次不匹配后不会再修改页面状态。
 let loadGeneration = 0;
@@ -26,6 +31,41 @@ function setPlayerError(message: string, generation = loadGeneration) {
   if (!isActiveState(generation)) return;
   playerState.value = "error";
   errorMessage.value = message;
+}
+
+function cancelReconnect() {
+  if (reconnectTimer !== undefined) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+  }
+}
+
+function resetReconnect() {
+  cancelReconnect();
+  reconnectAttempt = 0;
+}
+
+function scheduleReconnect(generation: number) {
+  if (!isActiveState(generation) || !props.url || reconnectTimer !== undefined) return;
+
+  if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+    setPlayerError(
+      `播放连接失败，已连续重连 ${MAX_RECONNECT_ATTEMPTS} 次，请稍后手动刷新`,
+      generation
+    );
+    return;
+  }
+
+  reconnectAttempt += 1;
+  playerState.value = "connecting";
+  errorMessage.value =
+    `播放已中断，将在 ${RECONNECT_DELAY_MS / 1000} 秒后进行第 ${reconnectAttempt} 次重连`;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = undefined;
+    if (isActiveState(generation)) {
+      void loadPlayer(false);
+    }
+  }, RECONNECT_DELAY_MS);
 }
 
 function describeMpegtsError(errorType?: string, errorDetail?: string) {
@@ -52,6 +92,7 @@ function handlePlayerError(
   });
   setPlayerError(describeMpegtsError(errorType, errorDetail), generation);
   releaseResources();
+  scheduleReconnect(generation);
 }
 
 function bindPlayerEvents(instance: mpegts.Player, generation: number) {
@@ -60,8 +101,8 @@ function bindPlayerEvents(instance: mpegts.Player, generation: number) {
   });
   instance.on(mpegts.Events.LOADING_COMPLETE, () => {
     if (!isActiveState(generation)) return;
-    playerState.value = "ended";
-    errorMessage.value = "播放流已结束或连接已关闭";
+    releaseResources();
+    scheduleReconnect(generation);
   });
   instance.on(mpegts.Events.RECOVERED_EARLY_EOF, () => {
     if (!isActiveState(generation)) return;
@@ -77,6 +118,8 @@ function bindPlayerEvents(instance: mpegts.Player, generation: number) {
 function bindVideoEvents(video: HTMLVideoElement, generation: number) {
   const onPlaying = () => {
     if (!isActiveState(generation)) return;
+    cancelReconnect();
+    reconnectAttempt = 0;
     playerState.value = "playing";
     errorMessage.value = "";
   };
@@ -91,13 +134,14 @@ function bindVideoEvents(video: HTMLVideoElement, generation: number) {
   };
   const onEnded = () => {
     if (!isActiveState(generation)) return;
-    playerState.value = "ended";
-    errorMessage.value = "播放流已结束";
+    releaseResources();
+    scheduleReconnect(generation);
   };
   const onError = () => {
     if (!isActiveState(generation)) return;
     setPlayerError("浏览器无法解码此播放流", generation);
     releaseResources();
+    scheduleReconnect(generation);
   };
 
   video.addEventListener("playing", onPlaying);
@@ -134,6 +178,7 @@ function releaseResources() {
 
 function destroyPlayer() {
   loadGeneration += 1;
+  resetReconnect();
   releaseResources();
   playerState.value = "idle";
 }
@@ -165,9 +210,14 @@ function loadFlv(video: HTMLVideoElement) {
   void playVideo(video);
 }
 
-async function loadPlayer() {
+async function loadPlayer(resetReconnectState = true) {
   // 每次切换 URL 都先释放旧播放器，再创建新连接，避免多个 FLV 流同时占用资源。
   const generation = ++loadGeneration;
+  if (resetReconnectState) {
+    resetReconnect();
+  } else {
+    cancelReconnect();
+  }
   releaseResources();
   errorMessage.value = "";
   playerState.value = "idle";
@@ -203,7 +253,7 @@ onBeforeUnmount(destroyPlayer);
   <div class="video-player">
     <video ref="videoRef" controls muted playsinline />
     <div v-if="playerState === 'connecting'" class="protocol-note">
-      正在连接 HTTP-FLV 播放流…
+      {{ errorMessage || "正在连接 HTTP-FLV 播放流…" }}
     </div>
     <div v-else-if="playerState === 'buffering'" class="protocol-note">
       {{ errorMessage || "正在缓冲播放流…" }}
