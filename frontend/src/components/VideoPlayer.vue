@@ -183,6 +183,10 @@ function destroyPlayer() {
   playerState.value = "idle";
 }
 
+function retryPlayback() {
+  void loadPlayer(true);
+}
+
 async function playVideo(video: HTMLVideoElement) {
   try {
     await video.play();
@@ -259,7 +263,10 @@ onBeforeUnmount(destroyPlayer);
       {{ errorMessage || "正在缓冲播放流…" }}
     </div>
     <div v-else-if="playerState === 'error' || playerState === 'ended'" class="protocol-note error" role="alert">
-      {{ errorMessage }}
+      <span>{{ errorMessage }}</span>
+      <button class="retry-button" type="button" @click="retryPlayback">
+        手动重试
+      </button>
     </div>
   </div>
 </template>
@@ -285,7 +292,25 @@ video {
 }
 
 .protocol-note.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   color: #fecaca;
   background: rgb(127 29 29 / 35%);
+}
+
+.retry-button {
+  flex: 0 0 auto;
+  border: 1px solid rgb(254 202 202 / 45%);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #fee2e2;
+  background: transparent;
+  cursor: pointer;
+}
+
+.retry-button:hover {
+  background: rgb(254 202 202 / 12%);
 }
 </style>
