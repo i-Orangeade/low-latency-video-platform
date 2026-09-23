@@ -20,6 +20,7 @@ data/
 .env
 .DS_Store
 .tmp-zlm-source/
+media-lab/**/*.mp4
 
 deploy/zlm/.api_secret
 .env
