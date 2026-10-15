@@ -65,6 +65,9 @@ services:
       LLVP_PUBLIC_ZLM_HTTP_PORT: ${LLVP_PUBLIC_ZLM_HTTP_PORT:-8080}
       LLVP_PUBLIC_ZLM_RTMP_PORT: ${LLVP_PUBLIC_ZLM_RTMP_PORT:-1935}
       LLVP_DATABASE_URL: sqlite:////app/data/llvp.db
+      LLVP_ADMIN_USERNAME: ${LLVP_ADMIN_USERNAME:-}
+      LLVP_ADMIN_PASSWORD_HASH: ${LLVP_ADMIN_PASSWORD_HASH:-}
+      LLVP_AUTH_COOKIE_SECURE: ${LLVP_AUTH_COOKIE_SECURE:-false}
     volumes:
       - ./data/backend:/app/data
     healthcheck:

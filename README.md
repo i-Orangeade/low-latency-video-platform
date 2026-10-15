@@ -31,6 +31,48 @@ cp .env.example .env
 ./scripts/start_all.sh
 ```
 
+### 管理员认证配置
+
+当前版本提供单管理员登录、会话检查和退出接口。它只建立认证边界；视频源
+CRUD 的权限保护将在下一阶段接入。项目不提供默认密码，未配置凭据时登录接口
+返回 `503`。
+
+在 `backend/` 中生成密码哈希，密码不会显示在终端，也不会写入命令历史：
+
+```bash
+cd backend
+.venv/bin/python -m app.cli hash-admin-password
+```
+
+把输出写入本机 `.env`，不要提交真实值：
+
+```env
+LLVP_ADMIN_USERNAME=admin
+LLVP_ADMIN_PASSWORD_HASH=scrypt:...
+LLVP_AUTH_COOKIE_SECURE=false
+```
+
+重建后端使环境变量生效：
+
+```bash
+docker compose up -d --force-recreate --no-deps backend
+```
+
+认证 API 使用 `HttpOnly`、`SameSite=Strict` Cookie，并将会话保存在后端进程
+内存中；后端重启后需要重新登录。当前局域网演示使用 HTTP，因此
+`LLVP_AUTH_COOKIE_SECURE=false`。只有部署 HTTPS 后才能改为 `true`。
+
+可以用 Cookie 文件验证认证流程：
+
+```bash
+curl -c /tmp/llvp-cookie -X POST http://127.0.0.1:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"YOUR_PASSWORD"}'
+
+curl -b /tmp/llvp-cookie http://127.0.0.1:8000/api/auth/session
+curl -b /tmp/llvp-cookie -X POST http://127.0.0.1:8000/api/auth/logout
+```
+
 登记演示视频源并推测试流：
 
 ```bash

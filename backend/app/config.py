@@ -35,6 +35,16 @@ class Settings(BaseSettings):
 
     default_app: str = "live"
 
+    # 单管理员认证。真实用户名、密码哈希和 Cookie 安全策略由环境变量提供。
+    # 未配置用户名或密码哈希时，登录接口会拒绝服务，不存在默认凭据。
+    admin_username: str | None = None
+    admin_password_hash: str | None = None
+    auth_cookie_name: str = "llvp_admin_session"
+    auth_cookie_secure: bool = False
+    auth_session_ttl_seconds: int = 8 * 60 * 60
+    auth_login_window_seconds: int = 15 * 60
+    auth_login_max_attempts: int = 10
+
 
 @lru_cache
 def get_settings() -> Settings:
