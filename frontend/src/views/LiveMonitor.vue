@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import { getPlayUrl, getStreamStatus, type StreamStatus } from "../api/stream";
 import { listVideoSources, type VideoSource } from "../api/videoSource";
+import StreamSharePanel from "../components/StreamSharePanel.vue";
 import StreamStatsPanel from "../components/StreamStatsPanel.vue";
 import VideoPlayer from "../components/VideoPlayer.vue";
 
@@ -16,6 +17,12 @@ let statusTimer: number | undefined;
 const selectedSource = computed(() =>
   sources.value.find((source) => source.stream_id === selectedStreamId.value)
 );
+const shareUrl = computed(() => {
+  if (!playUrl.value) return "";
+  const url = new URL("/play/share", window.location.origin);
+  url.searchParams.set("url", playUrl.value);
+  return url.toString();
+});
 
 async function loadStatus() {
   if (!selectedStreamId.value) {
@@ -94,9 +101,30 @@ onBeforeUnmount(() => window.clearInterval(statusTimer));
       </div>
       <p class="muted">播放地址：{{ playUrl }}</p>
     </div>
-    <div class="grid" style="grid-template-columns: minmax(420px, 2fr) minmax(260px, 1fr)">
+    <div class="grid live-monitor-grid">
       <VideoPlayer :url="playUrl" />
-      <StreamStatsPanel :status="status" :enabled="selectedSource?.enabled" />
+      <div class="live-monitor-side">
+        <StreamSharePanel :url="shareUrl" />
+        <StreamStatsPanel :status="status" :enabled="selectedSource?.enabled" />
+      </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.live-monitor-grid {
+  grid-template-columns: minmax(420px, 2fr) minmax(280px, 1fr);
+}
+
+.live-monitor-side {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+@media (max-width: 980px) {
+  .live-monitor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -1,5 +1,14 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
+const isStandalone = computed(() => route.meta.standalone === true);
+</script>
+
 <template>
-  <div class="app-shell">
+  <RouterView v-if="isStandalone" />
+  <div v-else class="app-shell">
     <aside class="sidebar">
       <h1>Low-Latency Live Video Platform</h1>
       <RouterLink to="/">总览</RouterLink>

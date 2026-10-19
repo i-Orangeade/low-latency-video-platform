@@ -88,6 +88,15 @@ http://127.0.0.1:8080/live/stream_001.live.flv
 GET /api/streams/stream_001/play-url
 ```
 
+实时监控右侧会生成一个免登录分享地址，格式为：
+
+```text
+http://<frontend-host>:5173/play/share?url=<encoded-http-flv-url>
+```
+
+分享页只显示播放器，不包含视频源管理和实时监控导航。打开分享链接的观众
+无需先进入管理界面；但媒体流本身仍需保持在线。
+
 ## 状态查询
 
 后端调用官方 `getMediaList`，不缓存在线状态：
