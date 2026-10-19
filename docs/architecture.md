@@ -13,6 +13,7 @@ queries stream status.
 Camera, encoder, or FFmpeg test source
   -> RTMP
   -> Official ZLMediaKit
+       -> on_publish Hook -> FastAPI -> SQLite video-source table
   -> HTTP-FLV
   -> Browser (mpegts.js)
 
@@ -28,8 +29,9 @@ ZLMediaKit owns ingest, protocol conversion, and HTTP-FLV delivery. FastAPI
 never forwards media packets. It stores `id/name/stream_id` video sources and asks
 ZLMediaKit whether a stream is currently published.
 
-Video-source registration is a demo catalog, not a publish gate. Any client may push
-to `rtmp://host/live/{stream_id}`.
+ZLMediaKit calls the authenticated `on_publish` Hook before accepting a
+publisher. Only a registered, enabled stream ID with the expected app can publish.
+The Hook uses a secret separate from the ZLM HTTP API secret.
 
 ## Learning Order
 

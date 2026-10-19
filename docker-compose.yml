@@ -28,6 +28,7 @@ services:
     environment:
       TZ: Asia/Shanghai
       LLVP_ZLM_SECRET: ${LLVP_ZLM_SECRET:?set LLVP_ZLM_SECRET in .env}
+      LLVP_ZLM_HOOK_SECRET: ${LLVP_ZLM_HOOK_SECRET:?set LLVP_ZLM_HOOK_SECRET in .env}
     healthcheck:
       test:
         - CMD-SHELL
@@ -61,6 +62,7 @@ services:
       # LLVP_PUBLIC_ZLM_HOST 配置，避免把 127.0.0.1 固定给跨主机浏览器。
       LLVP_ZLM_BASE_URL: http://zlm
       LLVP_ZLM_SECRET: ${LLVP_ZLM_SECRET}
+      LLVP_ZLM_HOOK_SECRET: ${LLVP_ZLM_HOOK_SECRET}
       LLVP_PUBLIC_ZLM_HOST: ${LLVP_PUBLIC_ZLM_HOST:-127.0.0.1}
       LLVP_PUBLIC_ZLM_HTTP_PORT: ${LLVP_PUBLIC_ZLM_HTTP_PORT:-8080}
       LLVP_PUBLIC_ZLM_RTMP_PORT: ${LLVP_PUBLIC_ZLM_RTMP_PORT:-1935}

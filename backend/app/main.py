@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import streams, video_sources
+from app.api import streams, video_sources, zlm_hooks
 from app.config import settings
 from app.database import init_db, run_migrations
 
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
 
     app.include_router(video_sources.router, prefix="/api")
     app.include_router(streams.router, prefix="/api")
+    app.include_router(zlm_hooks.router, prefix="/api")
     return app
 
 

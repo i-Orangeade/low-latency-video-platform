@@ -13,8 +13,13 @@
 cp .env.example .env
 ```
 
-Set `LLVP_ZLM_SECRET`. Compose injects this value into the official ZLMediaKit
-config template and into the FastAPI control plane.
+Set two different secrets:
+
+- `LLVP_ZLM_SECRET` authenticates FastAPI calls to the ZLMediaKit HTTP API;
+- `LLVP_ZLM_HOOK_SECRET` authenticates ZLMediaKit `on_publish` Hook calls.
+
+Compose injects both values into the appropriate services. Never reuse one
+secret for both purposes.
 
 The backend stores control-plane data in SQLite. Alembic migrations run during
 application startup, and can also be applied manually:
@@ -45,6 +50,9 @@ With a local file:
 ./scripts/push_test_stream.sh /path/to/demo.mp4
 ```
 
+Registration is now a publish gate. Publishing an unknown or disabled
+`stream_id` is rejected by ZLMediaKit after the FastAPI Hook returns failure.
+
 ## Play and Status URLs
 
 HTTP-FLV:
@@ -66,4 +74,5 @@ GET /api/health
 GET /api/video-sources
 GET /api/streams/stream_001/play-url
 GET /api/streams/stream_001/status
+POST /api/zlm/hooks/on_publish?token=<hook-secret>
 ```

@@ -25,7 +25,24 @@
 cp .env.example .env
 ```
 
-把 `.env` 里的 `LLVP_ZLM_SECRET` 改成自己的密钥，然后启动三个服务：
+分别设置 ZLM API 密钥和独立的 Hook 密钥，然后启动三个服务：
+
+```bash
+openssl rand -hex 32
+openssl rand -hex 32
+```
+
+把两个不同的随机值分别写入 `.env`：
+
+```env
+LLVP_ZLM_SECRET=...
+LLVP_ZLM_HOOK_SECRET=...
+```
+
+`LLVP_ZLM_SECRET` 只用于 FastAPI 调用 ZLM API；`LLVP_ZLM_HOOK_SECRET`
+只用于验证 ZLM 发出的推流 Hook。两者不能复用。
+
+启动三个服务：
 
 ```bash
 ./scripts/start_all.sh
@@ -64,7 +81,8 @@ NETWORK_INTERFACE=ens33 ./scripts/configure_public_host.sh
 
 视频源控制面包含 `id`、`name`、`stream_id`、`enabled`、`created_at` 和
 `updated_at`。前端「视频源管理」页面支持新增、编辑、删除、启停切换、按名称或
-`stream_id` 搜索，以及分页浏览。登记不是推流门禁，只是控制面管理。
+`stream_id` 搜索，以及分页浏览。只有已登记且启用的 `stream_id`
+可以通过 RTMP 推流。
 
 列表 API 支持以下查询参数：
 
@@ -83,7 +101,12 @@ curl -X POST http://127.0.0.1:8000/api/video-sources \
 
 ## RTMP 推流
 
-任意客户端、摄像头或编码器都可以向 `rtmp://127.0.0.1/live/{stream_id}` 推流。`push_test_stream.sh` 会先登记 `stream_001`，再调用 FFmpeg 生成测试画面。也可以传入本地视频：
+任意客户端、摄像头或编码器都可以向
+`rtmp://127.0.0.1/live/{stream_id}` 发起推流，但 ZLMediaKit 会调用
+FastAPI `on_publish` Hook。未登记或已停用的 `stream_id` 会被拒绝。
+
+`push_test_stream.sh` 会先登记 `stream_001`，再调用 FFmpeg 生成测试画面。
+也可以传入本地视频：
 
 ```bash
 ./scripts/push_test_stream.sh /path/to/demo.mp4

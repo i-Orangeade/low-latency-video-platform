@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # Docker 中该值会被覆盖为 http://zlm，而不是浏览器使用的宿主机地址。
     zlm_base_url: str = "http://127.0.0.1:8080"
     zlm_secret: str = "change-me-via-LLVP_ZLM_SECRET"
+    zlm_hook_secret: str | None = None
 
     # public_* 用于拼装返回给浏览器的播放地址。
     # 浏览器和后端位于不同网络命名空间时，这两个概念必须分开配置。
