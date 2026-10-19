@@ -31,6 +31,21 @@ cp .env.example .env
 ./scripts/start_all.sh
 ```
 
+切换 Wi-Fi、手机热点或 VMware 桥接地址后，可自动同步前端使用的媒体地址：
+
+```bash
+./scripts/configure_public_host.sh
+```
+
+脚本读取默认路由网卡的 IPv4，更新本机 `.env` 中的
+`LLVP_PUBLIC_ZLM_HOST`，确保服务已启动，并只重建后端容器。也可以显式指定
+地址或网卡：
+
+```bash
+./scripts/configure_public_host.sh 192.168.4.174
+NETWORK_INTERFACE=ens33 ./scripts/configure_public_host.sh
+```
+
 登记演示视频源并推测试流：
 
 ```bash

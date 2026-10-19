@@ -45,3 +45,5 @@ jobs:
         env:
           LLVP_ZLM_SECRET: ci-api-secret
         run: docker compose config >/dev/null
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh deploy/ffmpeg/*.sh
