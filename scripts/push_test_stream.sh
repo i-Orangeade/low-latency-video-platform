@@ -7,6 +7,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 STREAM_ID="${STREAM_ID:-stream_001}"
 RTMP_URL="${RTMP_URL:-rtmp://127.0.0.1/live/${STREAM_ID}}"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8000}"
+PUBLIC_ZLM_HOST="${PUBLIC_ZLM_HOST:-${LLVP_PUBLIC_ZLM_HOST:-127.0.0.1}}"
+PUBLIC_ZLM_HTTP_PORT="${PUBLIC_ZLM_HTTP_PORT:-${LLVP_PUBLIC_ZLM_HTTP_PORT:-8080}}"
 
 if [[ ! "${STREAM_ID}" =~ ^[A-Za-z0-9_-]+$ ]]; then
   echo "STREAM_ID may only contain letters, numbers, underscore, and hyphen" >&2
@@ -29,7 +31,7 @@ case "${status}" in
 esac
 
 echo "Pushing stream to ${RTMP_URL}"
-echo "HTTP-FLV playback: http://127.0.0.1:8080/live/${STREAM_ID}.live.flv"
+echo "HTTP-FLV playback: http://${PUBLIC_ZLM_HOST}:${PUBLIC_ZLM_HTTP_PORT}/live/${STREAM_ID}.live.flv"
 
 export STREAM_ID RTMP_URL
 exec "${PROJECT_ROOT}/deploy/ffmpeg/push_demo.sh" "${1:-}"
