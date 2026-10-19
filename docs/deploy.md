@@ -52,6 +52,8 @@ With a local file:
 
 Registration is now a publish gate. Publishing an unknown or disabled
 `stream_id` is rejected by ZLMediaKit after the FastAPI Hook returns failure.
+If the backend is unavailable, publishing also fails closed after the configured
+Hook timeout.
 
 ## Play and Status URLs
 

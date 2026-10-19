@@ -2,10 +2,11 @@
 
 ## Goal
 
-The base platform ingests a live source from a camera, encoder, or FFmpeg test
-source over RTMP, converts it to HTTP-FLV with a pinned official ZLMediaKit
-image, and lets a Vue player watch it. FastAPI only registers video sources and
-queries stream status.
+The platform ingests a live source from a camera, encoder, or FFmpeg test source
+over RTMP, converts it to HTTP-FLV with a pinned official ZLMediaKit image, and
+lets Vue players watch it through either the management live view or a standalone
+share page. FastAPI registers video sources, authorizes publishers, and queries
+stream status.
 
 ## Data Flow
 
@@ -33,6 +34,9 @@ ZLMediaKit calls the authenticated `on_publish` Hook before accepting a
 publisher. Only a registered, enabled stream ID with the expected app can publish.
 The Hook uses a secret separate from the ZLM HTTP API secret.
 
+The standalone `/play/share` frontend route displays only the player. It does not
+render management navigation and only accepts HTTP or HTTPS media URLs.
+
 ## Learning Order
 
 1. Start Compose and confirm `/api/health`.
@@ -44,5 +48,5 @@ The Hook uses a secret separate from the ZLM HTTP API secret.
 7. Read `backend/app/services/stream_status_service.py` to see how ZLM media records
    become platform stream-status responses.
 
-Advanced work (WebRTC, Hook, recording, QoS, benchmarks) lives on
-`advanced-archive` and should be moved back item by item.
+WebRTC, recording, alerting, QoS, clustering, and public production deployment
+are outside the current scope.

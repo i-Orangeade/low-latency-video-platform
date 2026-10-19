@@ -93,6 +93,13 @@ http://<ubuntu-host-ip>:8080/live/player_validation_001.live.flv
 curl -X DELETE http://127.0.0.1:8000/api/video-sources/player_validation_001
 ```
 
+8. **Shared playback page**
+   - Copy the share URL from the right side of the live-monitor page.
+   - Open it in a private browser window.
+   - Confirm the page contains only the video player, without the management sidebar.
+   - Confirm the shared URL plays while the source is online.
+   - Confirm an invalid or non-HTTP media URL shows the error state.
+
 The current implementation treats a `404` from ZLMediaKit as a missing live
 media stream. That is expected while FFmpeg is stopped; it should trigger the
 bounded reconnect flow rather than be treated as a frontend address failure.

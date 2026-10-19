@@ -1,8 +1,8 @@
 # Low-Latency Live Video Platform
 
-基础版低延迟实时视频平台：摄像头、编码器或 FFmpeg 测试源推送 RTMP，官方 ZLMediaKit 转 HTTP-FLV，Vue 播放，FastAPI 只管理视频源和流状态。
-
-完整进阶能力（WebRTC、Hook、告警、录像、QoS、压测、自定义 ZLM）保存在 `advanced-archive` 分支，需要时从该分支迁回，而不是重新开发。
+低延迟实时视频平台：摄像头、编码器或 FFmpeg 测试源推送 RTMP，ZLMediaKit
+负责接流和 HTTP-FLV 分发，FastAPI 管理视频源、执行推流鉴权并查询流状态。
+Vue 同时提供管理端实时监控和免登录分享播放页。
 
 ## 架构
 
@@ -10,16 +10,17 @@
 摄像头、编码器或测试源
   -> FFmpeg (H.264/AAC, RTMP)
   -> 官方 ZLMediaKit
+       -> on_publish Hook -> FastAPI -> SQLite 视频源表
        -> HTTP-FLV -> Vue (mpegts.js)
-       -> getMediaList -> FastAPI -> SQLite 视频源表
 浏览器 -> FastAPI（视频源 CRUD、播放地址、流状态）
 ```
 
-视频不经过 FastAPI。媒体面由 ZLMediaKit 负责接流和分发，控制面只查询状态并登记视频源。
+视频不经过 FastAPI。媒体面由 ZLMediaKit 负责接流和分发；控制面负责视频源
+登记、推流准入、播放地址和状态查询。
 
 ## 快速启动
 
-要求 Docker Compose、FFmpeg 和 curl。
+要求 Docker Compose、FFmpeg、curl 和 OpenSSL。
 
 ```bash
 cp .env.example .env
@@ -145,6 +146,12 @@ GET /api/streams/stream_001/status
 
 `online=true` 表示该 `stream_id` 当前有媒体。停推后应变为 `false`。
 
+## 部署边界
+
+当前版本定位为可信局域网演示环境，不包含管理端登录、推流账号或公网权限系统。
+`on_publish` 只拒绝未登记和已停用的流，不替代用户身份认证。不要将 RTMP、
+管理 API 或 ZLM HTTP 接口直接暴露到公网。
+
 ## 开发验证
 
 后端：
@@ -182,10 +189,7 @@ npm audit --audit-level=high
 
 它会走：健康检查 → 登记视频源 → 推流 → `status.online=true` → 停流 → `status.online=false`。
 
-## 进阶版
+## 范围说明
 
-```bash
-git fetch origin
-git checkout advanced-archive   # 完整进阶版
-git checkout main               # 当前基础版
-```
+当前仓库聚焦 RTMP 接入、HTTP-FLV 播放、视频源管理、推流鉴权和播放器可靠性。
+WebRTC、录像、告警、QoS、集群与公网生产部署不在当前版本范围内。
