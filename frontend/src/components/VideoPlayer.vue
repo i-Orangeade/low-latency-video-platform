@@ -201,11 +201,19 @@ function loadFlv(video: HTMLVideoElement) {
   }
 
   // mpegts.js 通过 Media Source Extensions 拉取并解码 HTTP-FLV 直播流。
-  player = mpegts.createPlayer({
-    type: "flv",
-    isLive: true,
-    url: props.url
-  });
+  player = mpegts.createPlayer(
+    {
+      type: "flv",
+      isLive: true,
+      url: props.url
+    },
+    {
+      liveSync: true,
+      liveSyncMaxLatency: 0.8,
+      liveSyncTargetLatency: 0.3,
+      liveSyncPlaybackRate: 1.2
+    }
+  );
   const generation = loadGeneration;
   bindPlayerEvents(player, generation);
   bindVideoEvents(video, generation);

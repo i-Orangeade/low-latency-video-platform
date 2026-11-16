@@ -25,6 +25,10 @@ require_pattern "${PLAYER_FILE}" "mpegts.Events.LOADING_COMPLETE" "stream comple
 require_pattern "${PLAYER_FILE}" "video.addEventListener(\"playing\"" "native playing listener"
 require_pattern "${PLAYER_FILE}" "video.addEventListener(\"error\"" "native video error listener"
 require_pattern "${PLAYER_FILE}" "window.clearTimeout(reconnectTimer)" "reconnect timer cleanup"
+require_pattern "${PLAYER_FILE}" "liveSync: true" "live latency chasing"
+require_pattern "${PLAYER_FILE}" "liveSyncMaxLatency: 0.8" "live latency chase threshold"
+require_pattern "${PLAYER_FILE}" "liveSyncTargetLatency: 0.3" "live latency chase target"
+require_pattern "${PLAYER_FILE}" "liveSyncPlaybackRate: 1.2" "live latency chase playback rate"
 
 for entry in \
   "${SHARE_PAGE_FILE}|<VideoPlayer v-if=\"mediaUrl\" :url=\"mediaUrl\" />|shared player rendering" \

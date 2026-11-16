@@ -11,8 +11,8 @@ Run from the repository root:
 ./scripts/validate_player.sh
 ```
 
-The script checks the player event/reconnect contracts and runs the production
-frontend build.
+The script checks player event/reconnect contracts, the configured live latency
+chasing settings, and runs the production frontend build.
 
 ## Browser Acceptance
 
@@ -103,3 +103,27 @@ curl -X DELETE http://127.0.0.1:8000/api/video-sources/player_validation_001
 The current implementation treats a `404` from ZLMediaKit as a missing live
 media stream. That is expected while FFmpeg is stopped; it should trigger the
 bounded reconnect flow rather than be treated as a frontend address failure.
+
+## Local Latency Observation
+
+A paired local-browser probe compared the default mpegts.js live player with
+`liveSync` enabled, using the same 720p/25 fps H.264 + AAC stream and Firefox
+instance. The source clock was overlaid on the video; its time was compared with
+the browser frame-capture time.
+
+| Configuration | P50 | P95 |
+| --- | ---: | ---: |
+| Default live playback | 1,558 ms | 1,746 ms |
+| `liveSync` enabled | 413 ms | 907 ms |
+
+The comparison used 59 valid paired samples across three 20-second runs. The
+median paired difference was about 1,160 ms lower with `liveSync`. A separate
+30-second run through the Vue share page measured P50 445 ms and P95 880 ms.
+During playback, the player briefly reached 1.2x and returned to 1x; no media
+errors or stalled events were observed. A short publisher interruption also
+recovered automatically after the test stream returned.
+
+These are observations from a single-host synthetic stream and one browser, not
+a network-wide guarantee or production SLO. They do not measure audible quality
+or long-duration A/V synchronization. Encoding, network conditions, browser
+buffering, and decoder performance can change the result.
